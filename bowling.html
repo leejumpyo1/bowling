@@ -187,7 +187,7 @@ const I18N = {
   close_game:'게임 종료', missing_scores:'점수 미입력: {0}',
   receives:'+{0}', pays:'−{0}', even:'0',
   confirm_close:'게임을 종료할까요?', confirm_close_t:'결과가 기록에 저장되고 평균이 자동으로 갱신됩니다.',
-  kassa_change:'이번 게임 회비 변동', will_receive:'받는 사람 (+)', will_pay:'내는 사람 (−)',
+  kassa_change:'이번 게임 회비 변동', will_receive:'🟢 평균 +20 이상', will_pay:'🔴 평균 미달',
   cancel:'취소', confirm:'확인', save:'저장', delete:'삭제', edit:'수정',
   del_game:'게임을 삭제할까요?', del_game_t:'게임과 결과가 영구 삭제됩니다.',
   closed_ok:'게임이 종료되었습니다', copy_results:'결과 복사',
@@ -204,7 +204,7 @@ const I18N = {
   settings_h:'규칙 및 설정',
   threshold:'「평균 이상」 기준 점수', amountL:'금액(원)', auto_avg:'평균 자동 계산',
   lastN:'최근 N회 모임 평균', def_teams:'기본 라인 수', def_time:'기본 시간', def_place:'기본 장소',
-  rule_text:'당일 평균이 <b>개인 평균 + {0} 이상</b> → <b>{1}</b> 받음. <b>평균 미만</b> → <b>{1}</b> 냄. 그 외 — 0.',
+  rule_text:'당일 평균이 <b>개인 평균 + {0} 이상</b> → <b class=\"pos\">초록</b>, <b>개인 평균 미만</b> → <b class=\"neg\">빨강</b>.',
   avg_text:'개인 평균 = 최근 {0}회 모임 평균. 횟수가 부족하면 초기 평균으로 채워 계산합니다.',
   avg_manual:'평균은 회원 카드에서 직접 입력합니다.',
   saved:'저장됨', copied:'복사됨', copy_manual:'문구를 복사하세요', close:'닫기',
@@ -224,9 +224,9 @@ const I18N = {
   rsvp_ok:'체크되었습니다', perLaneL:'라인(2레인)당 인원', autoLanesL:'게임 전날 자동 라인 배정', autoHourL:'자동 배정 시각 (전날, 시)',
   autoLanesHint:'라인이 아직 배정되지 않았다면 자동으로 배정됩니다. 수동 배정은 언제든 가능합니다.', auto_info:'자동 배정 예정: {0} {1}',
   lanes_hint:'관리자가 배정합니다: ⚖️ 버튼으로 평균 기준 자동 배정 후 수동으로 조정할 수 있습니다.',
-  first_night:'평균이 없는 회원(—)은 첫 모임은 +/− 없이 평균만 기록됩니다.',
+  first_night:'평균이 없는 회원(—)은 첫 모임은 표시 없이 평균만 기록됩니다.',
   ocr_btn:'영수증 사진으로 입력', ocr_loading:'인식 중…', ocr_ok:'{0}명 인식됨. 확인 후 「적용」을 누르세요.', ocr_none:'이름을 인식하지 못했습니다 — 아래 전체 텍스트를 직접 수정해 주세요.', ocr_fail:'인식 실패: {0}',
-  sum_good:'평균 +{0} 이상 (받음)', sum_bad:'평균 미달 (냄)',
+  sum_good:'평균 +{0} 이상', sum_bad:'평균 미달',
   no_game_viewer:'관리자가 모임을 만들면 여기에 표시됩니다.', last_result:'지난 게임 결과', lanes_wait:'아직 라인 배정 전입니다.',
   kind_bowling:'볼링', kind_dinner:'회식', place_opt:'장소 (선택)', dinner_close:'회식 종료', dinner_close_q:'회식을 종료할까요?', dinner_close_t:'기록으로 이동합니다.',
   poll_dinner:'🍽️ 회식 — {0}{1}\n아래 링크에서 참석/불참을 체크해 주세요 🙌',
@@ -555,11 +555,14 @@ function summaryHtml(list){
   const item = r => { const df=Math.round((r.n-r.avg)*10)/10; return `<div class="si"><b>${esc(r.name)}</b><span>⌀${fa(r.n)} / ${fa(r.avg)} <b>${df>0?'+':''}${df}</b></span></div>`; };
   return `<div class="sumbox">
     <div class="sb good"><div class="sbh">🏆 ${esc(t('sum_good', th))} · ${good.length}</div>${good.length?good.map(item).join(''):'<div class="hint">—</div>'}</div>
-    <div class="sb bad"><div class="sbh">💸 ${esc(t('sum_bad'))} · ${bad.length}</div>${bad.length?bad.map(item).join(''):'<div class="hint">—</div>'}</div></div>`;
+    <div class="sb bad"><div class="sbh">📉 ${esc(t('sum_bad'))} · ${bad.length}</div>${bad.length?bad.map(item).join(''):'<div class="hint">—</div>'}</div></div>`;
 }
 function resCell(arr, a){ const p=played(arr); if(!p.length) return '<span class="hint">—</span>';
-  return `${G()>1||p.length>1?`<span class="hint">⌀${fa(nightAvg(arr))}</span> `:''}${badge(deltaArr(arr,a))}`; }
+  return `${G()>1||p.length>1?`<span class="hint">⌀${fa(nightAvg(arr))}</span> `:''}${diffTag(nightAvg(arr), a)}`; }
 function ruleHtml(){ const s=S.settings; return t(s.mode==='each'?'rule_each':'rule_text', esc(s.threshold), esc(moneyAbs(s.amount))); }
+function diffTag(n, a){ if(n==null||a==null) return '<span class="hint">—</span>'; const df=Math.round((n-a)*10)/10; const th=Number(S.settings.threshold);
+  return `<b class="${n-a>=th?'pos':n<a?'neg':'hint'}">${df>0?'+':''}${df}</b>`; }
+const MEDALS = ['🥇','🥈','🥉'];
 function badge(d){ return `<span class="badge ${d>0?'good':d<0?'bad':'zero'}">${d>0?esc(t('receives', moneyAbs(d))):d<0?esc(t('pays', moneyAbs(d))):'0'}</span>`; }
 function teamsHtml(g, editable){
   const att = attendees(g); const k = g.teamCount||2;
@@ -569,7 +572,7 @@ function teamsHtml(g, editable){
   groups.forEach((ids,i)=>{
     const kn = ids.map(id=>avgIn(g,id)).filter(v=>v!=null); const sa = kn.reduce((a,b)=>a+b,0); const ma = kn.length? Math.round(sa/kn.length):0;
     const scs = ids.flatMap(id=>played(g.status==='done'?arrOf(g.scores?.[id]):draftArr(g,id))); const st = scs.reduce((a,b)=>a+b,0);
-    h += `<div class="team t${i%8}"><div class="th"><b>${esc(t('team', laneLabel(i)))}</b><span class="meta">${esc(t('sum_avg', sa, ma))}</span></div>
+    h += `<div class="team t${i%8}"><div class="th"><b>${esc(t('team', laneLabel(i)))}</b><span class="meta">${esc(t('sum_avg', fa(sa), ma))}</span></div>
       ${scs.length?`<div class="meta" style="margin:-4px 0 6px">🏁 ${esc(t('team_score', st))}</div>`:''}<ul>`;
     ids.sort((a,b)=>(avgIn(g,b)||0)-(avgIn(g,a)||0)).forEach(id=>{
       h += `<li><span class="nm">${esc(mname(id))}</span><span class="meta">${fa(avgIn(g,id))}</span>${editable&&S.canWrite!==false?moveSel(g,id,k):''}</li>`;
@@ -611,7 +614,7 @@ function vMembers(){
 function resultsRows(g){
   const ids = Object.keys(g.scores||{}).filter(id=>played(arrOf(g.scores[id])).length);
   return ids.map(id=>({id, name:mname(id), arr:played(arrOf(g.scores[id])), score:nightAvg(arrOf(g.scores[id])), avg:avgIn(g,id), d:Number(g.deltas?.[id]||0), team:g.team?.[id]}))
-    .sort((a,b)=>b.d-a.d || (b.score-b.avg)-(a.score-a.avg));
+    .sort((a,b)=>b.score-a.score);
 }
 function vHistory(){
   const gs = doneGames().reverse();
@@ -627,12 +630,12 @@ function vHistory(){
       <div><h3>🎳 ${esc(fmtDate(g.date,true))}</h3><div class="hint">${rows.length} ${esc(t('players'))}</div></div>
       <div class="row"><span class="hint">${open?'▲':'▼'}</span></div></div>`;
     if(open){
-      h += `<table class="sc"><thead><tr><th>${esc(t('player'))}</th><th class="num">${esc(t('games_col'))}</th><th class="num">⌀</th><th class="num">${esc(t('avg'))}</th><th class="num">${esc(t('result'))}</th><th></th></tr></thead><tbody>
-        ${rows.map(r=>`<tr class="${r.d>0?'row-good':r.d<0?'row-bad':''}"><td>${r.team!=null&&g.teamCount?`<span class="tag t${r.team%8}"></span> `:''}${esc(r.name)}</td><td class="num hint">${r.arr.join(' · ')}</td><td class="num"><b>${fa(r.score)}</b></td><td class="num hint">${fa(r.avg)}</td><td class="num">${badge(r.d)}</td><td class="num"><button class="btn ghost sm" data-act="card" data-id="${g.id}" data-m="${r.id}" title="📸">📸</button></td></tr>`).join('')}</tbody></table>`;
+      h += `<table class="sc"><thead><tr><th>${esc(t('player'))}</th><th class="num">⌀</th><th class="num">${esc(t('avg'))}</th><th class="num">±</th><th></th></tr></thead><tbody>
+        ${rows.map((r,i)=>`<tr class="${r.d>0?'row-good':r.d<0?'row-bad':''}"><td>${i<3?`<span style="font-size:17px">${MEDALS[i]}</span> `:`<span class="hint" style="display:inline-block;min-width:22px;font-size:12px">${i+1}</span>`}${r.team!=null&&g.teamCount?`<span class="tag t${r.team%8}"></span> `:''}${esc(r.name)}<div class="hint" style="font-size:12px;white-space:nowrap">${r.arr.join(' · ')}</div></td><td class="num"><b>${fa(r.score)}</b></td><td class="num hint">${fa(r.avg)}</td><td class="num">${diffTag(r.score, r.avg)}</td><td class="num"><button class="btn ghost sm" data-act="card" data-id="${g.id}" data-m="${r.id}" title="📸">📸</button></td></tr>`).join('')}</tbody></table>`;
       h += summaryHtml(rows.map(r=>({name:r.name, arr:r.arr, avg:r.avg})));
       if(g.teamCount) h += teamsHtml(g,false);
       h += `<div class="row" style="margin-top:14px"><button class="btn sm" data-act="copyResults" data-id="${g.id}">📋 ${esc(t('copy_results'))}</button>${kakaoBtn('kRes', g.id)}<span class="grow"></span>
-        <button class="btn sm ghost" data-act="reopen" data-id="${g.id}" ${ro()}>↺ ${esc(t('reopen'))}</button><button class="btn sm ghost danger" data-act="delGame" data-id="${g.id}" ${ro()}>🗑 ${esc(t('delete'))}</button></div>`;
+        ${isAdmin()?`<button class="btn sm ghost" data-act="reopen" data-id="${g.id}">↺ ${esc(t('reopen'))}</button><button class="btn sm ghost danger" data-act="delGame" data-id="${g.id}">🗑 ${esc(t('delete'))}</button>`:''}</div>`;
     }
     return h + `</div>`;
   }).join('');
@@ -764,8 +767,8 @@ async function drawCard(cd){
   // badges
   let bx=76; const badge=(txt,col,fg)=>{ x.font='800 36px '+KR; const w=x.measureText(txt).width+56; rr(x,bx,690,w,72,36); x.fillStyle=col; x.fill(); x.fillStyle=fg; x.fillText(txt,bx+28,739); bx+=w+18; };
   if(cd.top>=200) badge('🔥 200 CLUB','#ffcf33','#1a1200');
-  if(cd.d>0) badge('🏆 +'+Math.abs(cd.d).toLocaleString('ko-KR')+'원','#2ee59d','#04291b');
-  if(cd.rank===1 && cd.of>1) badge('👑 오늘 1위','#ffffff','#111');
+  if(cd.d>0) badge('🏆 평균 +'+S.settings.threshold+' 달성','#2ee59d','#04291b');
+  if(cd.rank>=1 && cd.rank<=3 && cd.of>1) badge(['🥇','🥈','🥉'][cd.rank-1]+' 오늘 '+cd.rank+'위','#ffffff','#111');
   // PnL-style diff
   if(cd.diff!=null){
     const pct = cd.a ? (cd.diff/cd.a*100) : 0, sg = cd.diff>=0?'+':'−';
@@ -810,7 +813,7 @@ function teamsText(g){
 function resultsText(g){
   const rows = resultsRows(g);
   let s = t('results_text', fmtDate(g.date,true)) + '\n';
-  rows.forEach(r=>{ s += `\n${r.name} — ${r.arr.join('/')}${r.arr.length>1?' ⌀'+fa(r.score):''} (${t('avg_short')} ${fa(r.avg)}): ${r.d>0?t('r_recv',moneyAbs(r.d)):r.d<0?t('r_pay',moneyAbs(r.d)):t('r_zero')}`; });
+  rows.forEach((r,i)=>{ s += `\n${i<3?MEDALS[i]:(i+1)+'.'} ${r.name} — ⌀${fa(r.score)} (${r.arr.join('/')})${r.d>0?' 🟢':r.d<0?' 🔴':''}`; });
   return s;
 }
 
@@ -961,20 +964,61 @@ function applyOcrText(M, text){
   } else { S.d.paste = text; M.ocrMsg = t('ocr_none'); }
 }
 const normName = s => String(s||'').replace(/\s+/g,'').toLowerCase();
+function matchToken(tok){
+  const T = normName(tok).replace(/[^가-힣a-zа-яё]/g,'');
+  if(T.length<2) return null;
+  const ms = S.members;
+  let m = ms.find(x=>normName(x.name)===T);
+  if(m) return m;
+  // receipt prints a shorter name, e.g. "알렉스" for "이알렉스"
+  const part = ms.filter(x=>{ const n=normName(x.name); return T.length>=2 && (n.endsWith(T) || n.startsWith(T)) && n.length-T.length<=1; });
+  if(part.length===1) return part[0];
+  // OCR typo: same length (3+), one wrong character
+  const fz = ms.filter(x=>{ const n=normName(x.name); if(n.length<3||n.length!==T.length) return false; let d=0; for(let i=0;i<n.length;i++) if(n[i]!==T[i]) d++; return d<=1; });
+  return fz.length===1 ? fz[0] : null;
+}
 function matchMember(line){
   const L = normName(line);
   const ms = S.members.slice().sort((a,b)=>(b.name||'').length-(a.name||'').length);
   let m = ms.find(m=>L.includes(normName(m.name)));
   if(m) return m;
-  // OCR tolerance: same length, at most one wrong character, at line start
-  const head = (line.match(/^[^\d]+/)||[''])[0].replace(/[^가-힣A-Za-zА-Яа-яЁё]/g,'').toLowerCase();
-  for(const x of ms){ const n=normName(x.name); if(n.length<3||head.length<n.length) continue;
-    const h=head.slice(0,n.length); let diff=0; for(let i=0;i<n.length;i++) if(h[i]!==n[i]) diff++;
-    if(diff<=1) return x; }
+  for(const tok of String(line).split(/[^가-힣A-Za-zА-Яа-яЁё]+/)){ const x = matchToken(tok); if(x) return x; }
   return null;
+}
+function parseTokens(text, n){
+  // Walk the whole text as a token stream: NAME num num num NAME num num num …
+  // Handles receipts where OCR puts the whole score block on one line and drops a name.
+  const toks = String(text).split(/[\s|]+/).filter(Boolean);
+  const seq = [];                       // {m, nums:[...]}
+  const order = [];                     // members in order of first appearance (top block order)
+  for(let i=0;i<toks.length;i++){
+    const tk = toks[i];
+    if(/^\d+$/.test(tk)){ if(seq.length) seq[seq.length-1].nums.push(Number(tk)); continue; }
+    const m = matchToken(tk);
+    if(m){ seq.push({m, nums:[]}); if(!order.includes(m.id)) order.push(m.id); }
+    else if(seq.length) seq[seq.length-1].closed = true, seq.push({m:null, nums:[]});
+  }
+  const res = {};
+  const ok = a => a.length===n && a.every(v=>v>=0 && v<=300);
+  const explicit = new Set(seq.filter(e=>e.m && e.nums.length===n && ok(e.nums)).map(e=>e.m.id));
+  seq.forEach(e=>{ if(e.m && e.nums.length===n && ok(e.nums)) res[e.m.id] = e.nums; });
+  seq.forEach(e=>{
+    if(!e.m || e.nums.length<=n || e.nums.length % n) return;
+    const chunks = []; for(let i=0;i<e.nums.length;i+=n) chunks.push(e.nums.slice(i,i+n));
+    if(!chunks.every(ok)) return;
+    // the extra triples must belong to the very next people in receipt order whose names OCR dropped
+    const k = order.indexOf(e.m.id);
+    const next = order.slice(k+1, k+chunks.length);
+    if(next.length !== chunks.length-1 || next.some(id=>explicit.has(id))) return;
+    if(!res[e.m.id]) res[e.m.id] = chunks[0];
+    next.forEach((id,i)=>{ if(!res[id]) res[id] = chunks[i+1]; });
+  });
+  return res;
 }
 function parsePaste(g, text){
   const n = G(); const best = {}; const unknown = [];
+  const tk = parseTokens(text, n);
+  Object.keys(tk).forEach(id=>{ best[id] = {id, sc:tk[id], exact:true}; });
   const isScore = v => v>=30 && v<=300;      // lane no., games count, rank (<30) and TOT (>300) are not game scores
   const lines = text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
   lines.forEach(line=>{
@@ -1126,8 +1170,8 @@ async function kakaoShareImage(M){
 function kakaoResultsText(g){
   const rows = resultsRows(g); const recv = rows.filter(r=>r.d>0).map(r=>r.name), pay = rows.filter(r=>r.d<0).map(r=>r.name);
   return t('results_text', fmtDate(g.date,true)) + '\n'
-    + '👍 ' + t('will_receive') + ': ' + (recv.join(', ')||'—') + '\n'
-    + '💸 ' + t('will_pay') + ': ' + (pay.join(', ')||'—');
+    + t('will_receive') + ': ' + (recv.join(', ')||'—') + '\n'
+    + t('will_pay') + ': ' + (pay.join(', ')||'—');
 }
 
 /* ---------------- boot ---------------- */
