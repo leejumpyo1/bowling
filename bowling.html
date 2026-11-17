@@ -346,7 +346,7 @@ function genTeams(g, k, randomize){
 const queues = {};
 function write(path, fn){
   if(!S.db){ toast(t('nodb')); return Promise.resolve(); }
-  const p = (queues[path]||Promise.resolve()).then(fn).catch(e=>{
+  const p = Promise.resolve().then(fn).catch(e=>{
     console.error(e);
     if(e && e.code==='auth') toast(t('login_need'));
     else if(e && e.code==='quota_exceeded') toast(t('quota'));
@@ -1030,15 +1030,20 @@ async function apiPost(body){
   if(!j.ok){ const e = new Error(j.error||'error'); e.code = j.error; throw e; }
   return j;
 }
-async function send(op, coll, id, data){
+const netQ = {};
+function send(op, coll, id, data){
+  // 1) мгновенно применяем изменение на экране
   const c = LOCAL[coll] || (LOCAL[coll] = {});
   if(op==='set') c[id] = clone(data);
   else if(op==='update'){ if(!c[id]) c[id] = {}; deepMerge(c[id], clone(data)); }
   else delete c[id];
   syncState(); render();
+  // 2) отправляем на сервер в фоне, по очереди для одного документа
+  const key = coll + '/' + id;
   pending++;
-  try{ await apiPost({action:op, token:TOKEN, coll, id, data}); pending--; }
-  catch(e){ pending--; if(e.code==='auth') logout(true); lastJson=''; await loadAll().catch(()=>{}); render(); throw e; }
+  const p = (netQ[key] || Promise.resolve()).catch(()=>{}).then(()=>apiPost({action:op, token:TOKEN, coll, id, data}));
+  netQ[key] = p;
+  return p.then(()=>{ pending--; }, async e=>{ pending--; if(e.code==='auth') logout(true); lastJson=''; await loadAll().catch(()=>{}); render(); throw e; });
 }
 const ref = (coll,id) => ({id, set:d=>send('set',coll,id,d), update:d=>send('update',coll,id,d), delete:()=>send('delete',coll,id)});
 const API_DB = {
