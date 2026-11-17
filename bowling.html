@@ -234,7 +234,7 @@ let ME0=''; try{ ME0 = localStorage.getItem('bw_me')||''; }catch(e){}
 const t = (k, ...a) => { let s = (I18N[lang] && I18N[lang][k]) ?? (I18N.ru && I18N.ru[k]) ?? k; a.forEach((v,i)=>{ s = s.split('{'+i+'}').join(v); }); return s; };
 
 /* ---------------- state ---------------- */
-const DEF = {threshold:20, amount:1000, autoAvg:true, lastN:10, teamCount:3, time:'18:20', place:'', gamesPerNight:3, mode:'evening', perLane:5};
+const DEF = {threshold:20, amount:1000, autoAvg:true, lastN:10, teamCount:3, time:'18:30', place:'', gamesPerNight:3, mode:'evening', perLane:5};
 const autoK = n => Math.max(1, Math.ceil(n / Math.max(1, num(S.settings.perLane)||5)));
 const G = () => Math.max(1, Math.min(10, Math.round(num(S.settings.gamesPerNight)||3)));
 function arrOf(v){ if(Array.isArray(v)) return v.map(num); if(num(v)!=null) return [num(v)]; return []; }
@@ -380,6 +380,12 @@ function render(){
 const dv = (k, def='') => S.d[k] ?? def;
 const ro = () => S.canWrite===false ? 'disabled' : '';
 const isAdmin = () => S.canWrite!==false;
+const DEFAULT_TIME = '18:30';
+function timeSelect(id, key, val){
+  const opts = []; for(let h=0;h<24;h++) for(const m of ['00','30']) opts.push(String(h).padStart(2,'0')+':'+m);
+  if(val && !opts.includes(val)) opts.push(val), opts.sort();
+  return `<select class="in" id="${id}" data-d="${key}">${opts.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+}
 const isDinner = g => g && g.kind==='dinner';
 const kindIcon = g => isDinner(g) ? '🍽️' : '🎳';
 
@@ -412,7 +418,7 @@ function vGameInner(){
       </div>
       <div class="grid2" style="margin-top:12px">
         <label class="f">${esc(t('date'))}<input class="in" type="date" id="ng_date" data-d="ng_date" value="${esc(dv('ng_date', today()))}"></label>
-        <label class="f">${esc(t('time'))}<input class="in" type="time" id="ng_time" data-d="ng_time" value="${esc(dv('ng_time', S.settings.time||''))}"></label>
+        <label class="f">${esc(t('time'))}${timeSelect('ng_time','ng_time', dv('ng_time', DEFAULT_TIME))}</label>
       </div>
       ${dv('ng_kind','bowling')==='dinner'?`<label class="f" style="margin-top:10px">${esc(t('place_opt'))}<input class="in" id="ng_place" data-d="ng_place" value="${esc(dv('ng_place'))}"></label>`:''}
       <div class="row" style="margin-top:14px"><button class="btn pri" data-act="createGame" ${ro()}>＋ ${esc(t('create_game'))}</button></div>
@@ -680,7 +686,7 @@ function renderModal(){
     <div class="row" style="margin-top:16px"><button class="btn ghost danger" data-act="delMember" data-id="${M.id}">🗑 ${esc(t('delete'))}</button><span class="grow"></span><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="saveMember" data-id="${M.id}">${esc(t('save'))}</button></div>`; }
   else if(M.type==='game'){ const g=S.games.find(x=>x.id===M.id)||{}; body = `<h3>${esc(t('edit'))}</h3>
     <div class="grid2"><label class="f">${esc(t('date'))}<input class="in" type="date" id="eg_date" data-d="eg_date" value="${esc(dv('eg_date', g.date))}"></label>
-    <label class="f">${esc(t('time'))}<input class="in" type="time" id="eg_time" data-d="eg_time" value="${esc(dv('eg_time', g.time||''))}"></label></div>
+    <label class="f">${esc(t('time'))}${timeSelect('eg_time','eg_time', dv('eg_time', g.time||DEFAULT_TIME))}</label></div>
     ${isDinner(g)?`<label class="f" style="margin-top:10px">${esc(t('place_opt'))}<input class="in" id="eg_place" data-d="eg_place" value="${esc(dv('eg_place', g.place||''))}"></label>`:''}
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="saveGame" data-id="${M.id}">${esc(t('save'))}</button></div>`; }
   root.innerHTML = `<div class="modal-bg" data-act="bgclose"><div class="modal">${body}</div></div>`;
@@ -825,7 +831,7 @@ document.addEventListener('click', e=>{
       const date = dv('ng_date', today()); if(!date) return;
       const ref = S.db.collection('games').doc();
       const kind = dv('ng_kind','bowling')==='dinner' ? 'dinner' : 'bowling';
-      const body = {date, kind, place: kind==='dinner' ? (dv('ng_place')||'').trim() : '', time:dv('ng_time', S.settings.time||''), status:'open', attending:{}, team:{}, teamCount:0, scores:{}, createdAt:Date.now()};
+      const body = {date, kind, place: kind==='dinner' ? (dv('ng_place')||'').trim() : '', time:dv('ng_time', DEFAULT_TIME), status:'open', attending:{}, team:{}, teamCount:0, scores:{}, createdAt:Date.now()};
       S.gameSel = ref.id; ['ng_date','ng_time','ng_kind','ng_place'].forEach(k=>delete S.d[k]);
       write('games/'+ref.id, ()=>ref.set(body)); render(); break; }
     case 'att': { const mid=el.dataset.m; const on=!g.attending?.[mid]; write('games/'+id, ()=>gdoc(id).update({attending:{[mid]:on}})); break; }
