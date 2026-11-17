@@ -224,6 +224,7 @@ const I18N = {
   kind_bowling:'볼링', kind_dinner:'회식', place_opt:'장소 (선택)', dinner_close:'회식 종료', dinner_close_q:'회식을 종료할까요?', dinner_close_t:'기록으로 이동합니다.',
   poll_dinner:'🍽️ 회식 — {0}{1}\n아래 링크에서 참석/불참을 체크해 주세요 🙌',
   card_h:'내 결과 카드', card_making:'카드 만드는 중…', card_share:'공유', card_save:'저장', card_hint:'카카오톡, 인스타그램으로 공유하거나 갤러리에 저장하세요.', my_card:'내 지난 게임 결과', card_make:'카드 만들기',
+  ocr_raw:'인식된 원문', ocr_raw_copy:'원문 복사',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
   kakao:'카카오톡 공유', kakao_open:'열기',
   newest:'새 모임', open_games:'진행 중 게임', unknown:'(삭제됨)'
@@ -676,6 +677,7 @@ function renderModal(){
   else if(M.type==='paste') body = `<h3>🧾 ${esc(t('paste'))}</h3>
     ${typeof doOcr==='function'?`<label class="btn pri" style="width:100%;justify-content:center;margin-bottom:10px;${M.loading?'opacity:.6;pointer-events:none':''}">📷 ${esc(M.loading?t('ocr_loading'):t('ocr_btn'))}<input type="file" accept="image/*" id="ocrFile" style="display:none"></label>`:''}
     ${M.ocrMsg?`<div class="rule" style="margin:0 0 8px">${esc(M.ocrMsg)}</div>`:''}
+    ${M.raw?`<details style="margin:0 0 8px"><summary class="hint" style="cursor:pointer">🔎 ${esc(t('ocr_raw'))}</summary><textarea class="in" readonly style="width:100%;min-height:140px;font-size:12px;margin-top:6px">${esc(M.raw)}</textarea><button class="btn sm" data-act="copyRaw" style="margin-top:6px">📋 ${esc(t('ocr_raw_copy'))}</button></details>`:''}
     <div class="hint" style="margin-bottom:8px">${esc(t('paste_hint', G()))}</div>
     <textarea class="in" id="pasteArea" data-d="paste" placeholder="박보미 166 105 159&#10;강지유 197 158 191">${esc(S.d.paste||'')}</textarea>
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="pasteGo" data-id="${M.id}">${esc(t('apply'))}</button></div>`;
@@ -817,6 +819,7 @@ document.addEventListener('click', e=>{
   const g = id ? S.games.find(x=>x.id===id) : null;
   switch(act){
     case 'card': openCard(id, el.dataset.m); break;
+    case 'copyRaw': if(S.modal && S.modal.raw) copyText(S.modal.raw); break;
     case 'cardShare': shareCardNative(); break;
     case 'cardKakao': if(typeof kakaoShareImage==='function') kakaoShareImage(S.modal); break;
     case 'auth': if(TOKEN){ logout(); } else { S.modal={type:'login'}; renderModal(); setTimeout(()=>document.getElementById('lg_user')?.focus(),30); } break;
@@ -918,6 +921,7 @@ async function runOcr(file){
   M.loading = false; renderModal();
 }
 function applyOcrText(M, text){
+  M.raw = text;
   const g = S.games.find(x=>x.id===M.id);
   const r = parsePaste(g, text);
   if(r.found.length){
@@ -940,26 +944,28 @@ function matchMember(line){
 }
 function parsePaste(g, text){
   const n = G(); const best = {}; const unknown = [];
-  text.split(/\n+/).forEach(line=>{
-    const nums = (line.match(/\d+/g)||[]).map(Number).filter(v=>v<=300);
+  const isScore = v => v>=30 && v<=300;      // lane no., games count, rank (<30) and TOT (>300) are not game scores
+  const lines = text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  lines.forEach(line=>{
+    const allNums = (line.match(/\d+/g)||[]).map(Number);
+    const nums = allNums.filter(isScore);
     const words = line.replace(/[\d|:.,;\-]+/g,' ').trim();
     if(!words || !nums.length) return;
     const m = matchMember(line);
     if(!m){ if(nums.length===n) unknown.push(words); return; }
-    if(nums.length>n) return;   // summary row (LN, Game, TOT, TOP, AVR, R) — skip
     const exact = nums.length===n;
+    const looksLikeSummary = allNums.length > n + 1;   // "이름 LN 구분 Game TOT TOP AVR R" row
+    if(looksLikeSummary && !exact) return;
+    if(nums.length>n) return;
     if(!best[m.id] || (exact && !best[m.id].exact)) best[m.id] = {id:m.id, sc:nums, exact};
   });
-  // OCR sometimes outputs columns separately: a block of names, then a block of number rows
-  if(!Object.keys(best).length){
-    const lines = text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
-    const nameLines = lines.filter(l=>!/\d/.test(l)).map(matchMember).filter(Boolean);
-    const numLines = lines.filter(l=>/^[\d\s|]+$/.test(l)).map(l=>(l.match(/\d+/g)||[]).map(Number)).filter(a=>a.length===n && a.every(v=>v<=300));
-    if(numLines.length && nameLines.length >= numLines.length){
-      const names = nameLines.slice(-numLines.length);
-      names.forEach((m,i)=>{ best[m.id] = {id:m.id, sc:numLines[i], exact:true}; });
-    }
+  // OCR may output the names column and the numbers column separately: zip name-only lines with number-only rows
+  const nameLines = lines.filter(l=>!/\d/.test(l)).map(matchMember).filter(Boolean);
+  const numRows = lines.filter(l=>/^[\d\s|.,]+$/.test(l)).map(l=>(l.match(/\d+/g)||[]).map(Number)).filter(a=>a.length===n && a.every(isScore));
+  if(numRows.length && nameLines.length >= numRows.length){
+    nameLines.slice(-numRows.length).forEach((m,i)=>{ if(!best[m.id] || !best[m.id].exact) best[m.id] = {id:m.id, sc:numRows[i], exact:true}; });
   }
+  // drop partial matches that are clearly not scores of all games (keep only if user typed fewer games by hand)
   return {found:Object.values(best), unknown};
 }
 async function closeGame(id){
