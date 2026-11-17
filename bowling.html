@@ -905,8 +905,11 @@ function kakaoInit(){
 function kakaoBtn(act, id){ return kakaoReady ? `<button class="btn sm kakao" data-act="${act}" data-id="${id}">💬 ${esc(t('kakao'))}</button>` : ''; }
 function kakaoShare(text){
   const url = location.href.split('#')[0];
-  const tx = text.length > 200 ? text.slice(0,197) + '…' : text;   // лимит текстового шаблона — 200 символов
-  try{ window.Kakao.Share.sendDefault({objectType:'text', text:tx, link:{mobileWebUrl:url, webUrl:url}, buttonTitle:t('kakao_open')}); }
+  const tail = '\n👉 ' + url;                                        // ссылка прямо в тексте — на случай, если кнопка не появится
+  const room = 200 - tail.length;                                     // лимит текстового шаблона — 200 символов
+  const tx = (text.length > room ? text.slice(0, room-1) + '…' : text) + tail;
+  const link = {mobileWebUrl:url, webUrl:url};
+  try{ window.Kakao.Share.sendDefault({objectType:'text', text:tx, link, buttons:[{title:t('kakao_open'), link}]}); }
   catch(e){ console.error(e); toast(t('err', e.message||'Kakao')); }
 }
 function kakaoResultsText(g){
