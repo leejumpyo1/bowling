@@ -168,8 +168,8 @@ const I18N = {
   loading:'불러오는 중…', stale:'서버에 연결할 수 없습니다 — 데이터가 최신이 아닐 수 있습니다.',
   nodb:'API 주소가 없습니다: index.html의 API_URL에 Apps Script 링크를 넣어 주세요.',
   readonly:'참석 체크는 누구나 가능합니다. 그 외 수정은 관리자 로그인 후 가능 (위의 「로그인」).',
-  no_game:'예정된 게임이 없습니다', no_game_hint:'게임을 만들면 참석 조사, 라인 배정, 점수 입력을 할 수 있습니다.',
-  date:'날짜', time:'시간', place:'장소', create_game:'게임 만들기',
+  no_game:'예정된 모임이 없습니다', no_game_hint:'볼링 게임 또는 회식을 만들 수 있습니다.',
+  date:'날짜', time:'시간', place:'장소', create_game:'만들기',
   s1:'참석자', s2:'라인 배정', s3:'점수', s4:'결과',
   going:'참석 {0} · 불참 {1} · 미응답 {2}', copy_poll:'참석 조사 문구', all:'전체', none:'해제',
   no_members:'먼저 「회원」 탭에서 회원을 추가하세요.',
@@ -220,9 +220,13 @@ const I18N = {
   first_night:'평균이 없는 회원(—)은 첫 모임은 +/− 없이 평균만 기록됩니다.',
   ocr_btn:'영수증 사진으로 입력', ocr_loading:'인식 중…', ocr_ok:'{0}명 인식됨. 확인 후 「적용」을 누르세요.', ocr_none:'이름을 인식하지 못했습니다 — 아래 전체 텍스트를 직접 수정해 주세요.', ocr_fail:'인식 실패: {0}',
   sum_good:'평균 +{0} 이상 (받음)', sum_bad:'평균 미달 (냄)',
+  no_game_viewer:'관리자가 모임을 만들면 여기에 표시됩니다.', last_result:'지난 게임 결과', lanes_wait:'아직 라인 배정 전입니다.',
+  kind_bowling:'볼링', kind_dinner:'회식', place_opt:'장소 (선택)', dinner_close:'회식 종료', dinner_close_q:'회식을 종료할까요?', dinner_close_t:'기록으로 이동합니다.',
+  poll_dinner:'🍽️ 회식 — {0}{1}\n아래 링크에서 참석/불참을 체크해 주세요 🙌',
+  card_h:'내 결과 카드', card_making:'카드 만드는 중…', card_share:'공유', card_save:'저장', card_hint:'카카오톡, 인스타그램으로 공유하거나 갤러리에 저장하세요.', my_card:'내 지난 게임 결과', card_make:'카드 만들기',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
   kakao:'카카오톡 공유', kakao_open:'열기',
-  newest:'새 게임', open_games:'진행 중 게임', unknown:'(삭제됨)'
+  newest:'새 모임', open_games:'진행 중 게임', unknown:'(삭제됨)'
  }
 };
 let lang = 'ko';
@@ -353,7 +357,8 @@ function render(){
   document.getElementById('authBtn').textContent = TOKEN ? '🔓 '+t('logout') : '🔒 '+t('login');
   document.getElementById('authBtn').style.display = S.noDb ? 'none' : '';
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on', b.dataset.v===lang));
-  const tabs = ['game','members','history','settings'];
+  const tabs = ['game','members','history'];
+  if(!tabs.includes(S.tab)) S.tab='game';
   document.getElementById('tabs').innerHTML = tabs.map(k=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${esc(t('tab_'+k))}</button>`).join('');
 
   // preserve focus
@@ -374,18 +379,42 @@ function render(){
 }
 const dv = (k, def='') => S.d[k] ?? def;
 const ro = () => S.canWrite===false ? 'disabled' : '';
+const isAdmin = () => S.canWrite!==false;
+const isDinner = g => g && g.kind==='dinner';
+const kindIcon = g => isDinner(g) ? '🍽️' : '🎳';
 
-function vGame(){
+function myLastCard(){
+  if(!S.me || !member(S.me)) return '';
+  const g = doneGames().filter(x=>!isDinner(x) && played(arrOf(x.scores?.[S.me])).length).slice(-1)[0];
+  if(!g) return '';
+  const top = Math.max(...played(arrOf(g.scores[S.me])));
+  return `<div class="card row between"><div><b>📸 ${esc(t('my_card'))}</b><div class="hint">${esc(fmtDate(g.date,true))} · BEST ${top}</div></div><button class="btn pri" data-act="card" data-id="${g.id}" data-m="${S.me}">${esc(t('card_make'))}</button></div>`;
+}
+function vGame(){ return vGameInner() + myLastCard(); }
+function vGameInner(){
   const og = openGames();
+  if(!isAdmin() && (!og.length || S.gameSel==='new')){
+    S.gameSel = null;
+    if(!og.length){
+      const last = doneGames().slice(-1)[0];
+      return `<div class="card"><div class="empty"><div class="ico">🎳</div><h2>${esc(t('no_game'))}</h2><div class="hint">${esc(t('no_game_viewer'))}</div>
+        ${last?`<div style="margin-top:14px"><button class="btn sm" data-act="tab" data-v="history">📜 ${esc(t('last_result'))} (${esc(fmtDate(last.date))})</button></div>`:''}</div></div>`;
+    }
+  }
   if(!og.length || S.gameSel==='new'){
     if(S.gameSel==='new' && !og.length) S.gameSel=null;
     return `<div class="card">
       ${og.length?`<div class="row between"><h2>${esc(t('newest'))}</h2><button class="btn ghost" data-act="gsel" data-v="">✕</button></div>`:
       `<div class="empty"><div class="ico">🎳</div><h2>${esc(t('no_game'))}</h2><div class="hint">${esc(t('no_game_hint'))}</div></div>`}
+      <div class="chips" style="margin-top:12px">
+        <button class="chip ${dv('ng_kind','bowling')!=='dinner'?'on':''}" data-act="ngKind" data-v="bowling">🎳 ${esc(t('kind_bowling'))}</button>
+        <button class="chip ${dv('ng_kind','bowling')==='dinner'?'on':''}" data-act="ngKind" data-v="dinner">🍽️ ${esc(t('kind_dinner'))}</button>
+      </div>
       <div class="grid2" style="margin-top:12px">
         <label class="f">${esc(t('date'))}<input class="in" type="date" id="ng_date" data-d="ng_date" value="${esc(dv('ng_date', today()))}"></label>
         <label class="f">${esc(t('time'))}<input class="in" type="time" id="ng_time" data-d="ng_time" value="${esc(dv('ng_time', S.settings.time||''))}"></label>
       </div>
+      ${dv('ng_kind','bowling')==='dinner'?`<label class="f" style="margin-top:10px">${esc(t('place_opt'))}<input class="in" id="ng_place" data-d="ng_place" value="${esc(dv('ng_place'))}"></label>`:''}
       <div class="row" style="margin-top:14px"><button class="btn pri" data-act="createGame" ${ro()}>＋ ${esc(t('create_game'))}</button></div>
     </div>`;
   }
@@ -396,12 +425,12 @@ function vGame(){
   const tc = g.teamCount || 0;
   const hasTeams = tc>0 && att.some(id=>g.team && g.team[id]!=null);
   let h = '';
-  if(og.length>1 || true){
-    h += `<div class="chips">${og.map(x=>`<button class="chip ${x.id===g.id?'on':''}" data-act="gsel" data-v="${x.id}">${esc(fmtDate(x.date))}</button>`).join('')}<button class="chip" data-act="gsel" data-v="new">＋</button></div>`;
+  if(og.length>1 || isAdmin()){
+    h += `<div class="chips">${og.map(x=>`<button class="chip ${x.id===g.id?'on':''}" data-act="gsel" data-v="${x.id}">${kindIcon(x)} ${esc(fmtDate(x.date))}</button>`).join('')}${isAdmin()?`<button class="chip" data-act="gsel" data-v="new">＋</button>`:''}</div>`;
   }
   // header
-  h += `<div class="card"><div class="row between"><div><h2>${esc(fmtDate(g.date,true))}${g.time?' · '+esc(g.time):''}</h2></div>
-    <div class="row"><button class="btn ghost" data-act="editGame" data-id="${g.id}" ${ro()}>✎</button><button class="btn ghost danger" data-act="delGame" data-id="${g.id}" ${ro()}>🗑</button></div></div></div>`;
+  h += `<div class="card"><div class="row between"><div><h2>${kindIcon(g)} ${isDinner(g)?esc(t('kind_dinner'))+' · ':''}${esc(fmtDate(g.date,true))}${g.time?' · '+esc(g.time):''}</h2>${isDinner(g)&&g.place?`<div class="hint">📍 ${esc(g.place)}</div>`:''}</div>
+    ${isAdmin()?`<div class="row"><button class="btn ghost" data-act="editGame" data-id="${g.id}">✎</button><button class="btn ghost danger" data-act="delGame" data-id="${g.id}">🗑</button></div>`:''}</div></div>`;
 
   h += rsvpCard(g);
   // step 1
@@ -410,15 +439,22 @@ function vGame(){
   if(!actM.length) h += `<div class="hint">${esc(t('no_members'))}</div>`;
   else {
     h += `<div class="row"><button class="btn sm" data-act="copyPoll" data-id="${g.id}">📋 ${esc(t('copy_poll'))}</button>${kakaoBtn('kPoll', g.id)}
-      <span class="grow"></span><button class="btn sm ghost" data-act="attAll" data-id="${g.id}" ${ro()}>${esc(t('all'))}</button><button class="btn sm ghost" data-act="attNone" data-id="${g.id}" ${ro()}>${esc(t('none'))}</button></div>`;
+      <span class="grow"></span>${isAdmin()?`<button class="btn sm ghost" data-act="attAll" data-id="${g.id}">${esc(t('all'))}</button><button class="btn sm ghost" data-act="attNone" data-id="${g.id}">${esc(t('none'))}</button>`:''}</div>`;
     h += `<div class="pills">${actM.map(m=>{ const on=!!g.attending?.[m.id], off=g.attending?.[m.id]===false; return `<button class="pill ${on?'on':''} ${off?'off':''}" data-act="att" data-id="${g.id}" data-m="${m.id}" ${ro()}><span class="dot">${on?'✓':off?'✕':''}</span>${esc(m.name)} <span class="av">${fa(avgIn(g,m.id))}</span></button>`; }).join('')}</div>`;
   }
   h += `</div>`;
 
+  if(isDinner(g)){
+    if(isAdmin()) h += `<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn pri" data-act="closeDinner" data-id="${g.id}">✓ ${esc(t('dinner_close'))}</button></div>`;
+    return h;
+  }
   // step 2
   const kDef = num(dv('tc_'+g.id)) ?? (g.teamCount || autoK(att.length));
   h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3></div>`;
-  if(att.length<2) h += `<div class="hint">${esc(t('need_att'))}</div>`;
+  if(!isAdmin()){
+    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}</div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
+  }
+  else if(att.length<2) h += `<div class="hint">${esc(t('need_att'))}</div>`;
   else {
     h += `<div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:8px">${esc(t('teams_n'))}<input class="in" type="number" min="1" max="8" style="width:70px" id="tc_${g.id}" data-d="tc_${g.id}" value="${esc(kDef)}"></label>
       <button class="btn pri sm" data-act="gen" data-id="${g.id}" ${ro()}>⚖️ ${esc(t('gen'))}</button>
@@ -429,12 +465,14 @@ function vGame(){
   h += `</div>`;
 
   // step 3
-  if(!att.length && actM.length){
+  const anyScores = att.some(id=>played(draftArr(g,id)).length);
+  if(!isAdmin() && !anyScores){ /* viewers: nothing until scores are in */ }
+  else if(!att.length && actM.length){
     h += `<div class="card"><div class="step"><div class="n">3</div><h3 class="grow">${esc(t('s3'))}</h3><button class="btn sm" data-act="paste" data-id="${g.id}" ${ro()}>🧾 ${esc(t('paste'))}</button></div><div class="hint">${esc(t('paste_first'))}</div></div>`;
   }
-  if(att.length){
+  if(att.length && (isAdmin() || anyScores)){
     const n = G();
-    h += `<div class="card"><div class="step"><div class="n">3</div><h3 class="grow">${esc(t('s3'))}</h3><button class="btn sm" data-act="paste" data-id="${g.id}" ${ro()}>🧾 ${esc(t('paste'))}</button></div>
+    h += `<div class="card"><div class="step"><div class="n">3</div><h3 class="grow">${esc(t('s3'))}</h3>${isAdmin()?`<button class="btn sm" data-act="paste" data-id="${g.id}">🧾 ${esc(t('paste'))}</button>`:''}</div>
       <div class="rule">${ruleHtml()}${att.some(id=>avgIn(g,id)==null)?`<br><span class="hint">${esc(t('first_night'))}</span>`:''}</div>
       <div style="overflow-x:auto"><table class="sc"><thead><tr><th>${esc(t('player'))}</th><th class="num">${esc(t('avg'))}</th>${Array.from({length:n},(_,i)=>`<th class="num">${n>1?esc(t('gameN',i+1)):esc(t('score'))}</th>`).join('')}<th class="num">${esc(t('result'))}</th></tr></thead><tbody>`;
     const ordered = orderByTeam(g, att);
@@ -451,7 +489,7 @@ function vGame(){
     const miss = att.filter(id=>!played(draftArr(g,id)).length);
     const kas = -att.reduce((s,id)=>s+deltaArr(draftArr(g,id), avgIn(g,id)),0);
     h += `<div class="row between" style="margin-top:14px"><div class="hint">${miss.length?esc(t('missing_scores', miss.map(mname).join(', '))):''}</div>
-      <button class="btn pri" data-act="askClose" data-id="${g.id}" ${miss.length===att.length||S.canWrite===false?'disabled':''}>✓ ${esc(t('close_game'))}</button></div></div>`;
+      ${isAdmin()?`<button class="btn pri" data-act="askClose" data-id="${g.id}" ${miss.length===att.length?'disabled':''}>✓ ${esc(t('close_game'))}</button>`:''}</div></div>`;
   }
   return h;
 }
@@ -512,7 +550,7 @@ function moveSel(g,id,k){
 
 function vMembers(){
   const ms = [...S.members].sort((a,b)=>(a.active===false)-(b.active===false) || byName(a,b));
-  let h = `<div class="card"><h2>${esc(t('add_member'))}</h2>
+  let h = !isAdmin() ? '' : `<div class="card"><h2>${esc(t('add_member'))}</h2>
     <div class="row" style="margin-top:10px;align-items:flex-end">
       <label class="f grow">${esc(t('name'))}<input class="in" id="nm_name" data-d="nm_name" value="${esc(dv('nm_name'))}"></label>
       <label class="f" style="width:150px">${esc(t('base_avg'))}<input class="in" type="number" id="nm_avg" data-d="nm_avg" value="${esc(dv('nm_avg'))}" inputmode="numeric"></label>
@@ -525,7 +563,7 @@ function vMembers(){
     ms.forEach(m=>{ const st=memberStats(m.id);
       h += `<tr class="${m.active===false?'inactive':''}"><td><b>${esc(m.name)}</b>${num(m.base)!=null&&S.settings.autoAvg?`<div class="hint">${esc(t('base_avg'))}: ${esc(m.base)}</div>`:''}</td>
         <td class="num"><b>${fa(curAvg(m.id))}</b></td><td class="num">${st.games}</td>
-        <td class="num"><button class="btn ghost sm" data-act="editMember" data-id="${m.id}" ${ro()}>✎</button></td></tr>`;
+        <td class="num">${isAdmin()?`<button class="btn ghost sm" data-act="editMember" data-id="${m.id}">✎</button>`:''}</td></tr>`;
     });
     h += `</tbody></table>`;
   }
@@ -541,13 +579,18 @@ function vHistory(){
   const gs = doneGames().reverse();
   if(!gs.length) return `<div class="card empty"><div class="ico">📜</div>${esc(t('no_history'))}</div>`;
   return gs.map(g=>{
+    if(isDinner(g)){
+      const att = attendees(g); const open = S.histOpen===g.id;
+      return `<div class="card"><div class="row between gcard" data-act="hist" data-id="${g.id}"><div><h3>🍽️ ${esc(t('kind_dinner'))} · ${esc(fmtDate(g.date,true))}</h3><div class="hint">${att.length} ${esc(t('players'))}${g.place?' · 📍 '+esc(g.place):''}</div></div><span class="hint">${open?'▲':'▼'}</span></div>
+        ${open?`<div class="pills">${att.map(id=>`<span class="pill on"><span class="dot">✓</span>${esc(mname(id))}</span>`).join('')}</div>${isAdmin()?`<div class="row" style="margin-top:14px"><span class="grow"></span><button class="btn sm ghost" data-act="reopen" data-id="${g.id}">↺ ${esc(t('reopen'))}</button><button class="btn sm ghost danger" data-act="delGame" data-id="${g.id}">🗑 ${esc(t('delete'))}</button></div>`:''}`:''}</div>`;
+    }
     const rows = resultsRows(g); const kas = gameKassa(g); const open = S.histOpen===g.id;
     let h = `<div class="card"><div class="row between gcard" data-act="hist" data-id="${g.id}">
-      <div><h3>${esc(fmtDate(g.date,true))}</h3><div class="hint">${rows.length} ${esc(t('players'))}</div></div>
+      <div><h3>🎳 ${esc(fmtDate(g.date,true))}</h3><div class="hint">${rows.length} ${esc(t('players'))}</div></div>
       <div class="row"><span class="hint">${open?'▲':'▼'}</span></div></div>`;
     if(open){
-      h += `<table class="sc"><thead><tr><th>${esc(t('player'))}</th><th class="num">${esc(t('games_col'))}</th><th class="num">⌀</th><th class="num">${esc(t('avg'))}</th><th class="num">${esc(t('result'))}</th></tr></thead><tbody>
-        ${rows.map(r=>`<tr class="${r.d>0?'row-good':r.d<0?'row-bad':''}"><td>${r.team!=null&&g.teamCount?`<span class="tag t${r.team%8}"></span> `:''}${esc(r.name)}</td><td class="num hint">${r.arr.join(' · ')}</td><td class="num"><b>${fa(r.score)}</b></td><td class="num hint">${fa(r.avg)}</td><td class="num">${badge(r.d)}</td></tr>`).join('')}</tbody></table>`;
+      h += `<table class="sc"><thead><tr><th>${esc(t('player'))}</th><th class="num">${esc(t('games_col'))}</th><th class="num">⌀</th><th class="num">${esc(t('avg'))}</th><th class="num">${esc(t('result'))}</th><th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr class="${r.d>0?'row-good':r.d<0?'row-bad':''}"><td>${r.team!=null&&g.teamCount?`<span class="tag t${r.team%8}"></span> `:''}${esc(r.name)}</td><td class="num hint">${r.arr.join(' · ')}</td><td class="num"><b>${fa(r.score)}</b></td><td class="num hint">${fa(r.avg)}</td><td class="num">${badge(r.d)}</td><td class="num"><button class="btn ghost sm" data-act="card" data-id="${g.id}" data-m="${r.id}" title="📸">📸</button></td></tr>`).join('')}</tbody></table>`;
       h += summaryHtml(rows.map(r=>({name:r.name, arr:r.arr, avg:r.avg})));
       if(g.teamCount) h += teamsHtml(g,false);
       h += `<div class="row" style="margin-top:14px"><button class="btn sm" data-act="copyResults" data-id="${g.id}">📋 ${esc(t('copy_results'))}</button>${kakaoBtn('kRes', g.id)}<span class="grow"></span>
@@ -610,6 +653,15 @@ function renderModal(){
   let body='';
   if(M.type==='copy') body = `<h3>${esc(t('copy_manual'))}</h3><textarea class="in" id="copyArea" readonly>${esc(M.text)}</textarea><div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn pri" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='confirm') body = `<h3>${esc(M.title)}</h3><div class="hint">${M.html||esc(M.text||'')}</div><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri ${M.danger?'':''}" data-act="mok">${esc(M.okLabel||t('confirm'))}</button></div>`;
+  else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>📸 ${esc(t('card_h'))}</h3>
+    <img src="${M.img}" alt="" style="width:100%;border-radius:12px;display:block">
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      ${typeof kakaoShareImage==='function' && typeof kakaoReady!=='undefined' && kakaoReady ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
+      ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow" data-act="cardShare" style="justify-content:center">📤 ${esc(t('card_share'))}</button>`:''}
+      <a class="btn grow" href="${M.img}" download="${esc(M.file.name)}" style="justify-content:center;text-decoration:none;color:inherit">⬇️ ${esc(t('card_save'))}</a>
+    </div>
+    <div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='login') body = `<h3>🔒 ${esc(t('login_h'))}</h3>
     <form id="loginForm"><label class="f">${esc(t('loginL'))}<input class="in" id="lg_user" data-d="lg_user" autocomplete="username" value="${esc(dv('lg_user'))}"></label>
     <label class="f" style="margin-top:10px">${esc(t('passL'))}<input class="in" type="password" id="lg_pass" data-d="lg_pass" autocomplete="current-password" value="${esc(dv('lg_pass'))}"></label>
@@ -629,6 +681,7 @@ function renderModal(){
   else if(M.type==='game'){ const g=S.games.find(x=>x.id===M.id)||{}; body = `<h3>${esc(t('edit'))}</h3>
     <div class="grid2"><label class="f">${esc(t('date'))}<input class="in" type="date" id="eg_date" data-d="eg_date" value="${esc(dv('eg_date', g.date))}"></label>
     <label class="f">${esc(t('time'))}<input class="in" type="time" id="eg_time" data-d="eg_time" value="${esc(dv('eg_time', g.time||''))}"></label></div>
+    ${isDinner(g)?`<label class="f" style="margin-top:10px">${esc(t('place_opt'))}<input class="in" id="eg_place" data-d="eg_place" value="${esc(dv('eg_place', g.place||''))}"></label>`:''}
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="saveGame" data-id="${M.id}">${esc(t('save'))}</button></div>`; }
   root.innerHTML = `<div class="modal-bg" data-act="bgclose"><div class="modal">${body}</div></div>`;
 }
@@ -640,8 +693,75 @@ function copyText(txt){
 }
 function closeModal(){ S.modal=null; ['em_name','em_avg','em_active','eg_date','eg_time','eg_place'].forEach(k=>delete S.d[k]); renderModal(); }
 
+
+/* ---------------- result card (KuCoin-style share image) ---------------- */
+function cardData(g, id){
+  const arr = played(arrOf(g.scores?.[id])); if(!arr.length) return null;
+  const all = Object.keys(g.scores||{}).map(k=>({k, n:nightAvg(arrOf(g.scores[k]))})).filter(r=>r.n!=null).sort((a,b)=>b.n-a.n);
+  const a = avgIn(g,id), n = nightAvg(arr);
+  return {name:mname(id), date:g.date, arr, top:Math.max(...arr), n, a, diff: a==null?null:n-a,
+    d: g.status==='done' ? Number(g.deltas?.[id]||0) : deltaArr(arr,a), rank: all.findIndex(r=>r.k===id)+1, of: all.length};
+}
+function rr(x, X, Y, W, H, R){ x.beginPath(); x.moveTo(X+R,Y); x.arcTo(X+W,Y,X+W,Y+H,R); x.arcTo(X+W,Y+H,X,Y+H,R); x.arcTo(X,Y+H,X,Y,R); x.arcTo(X,Y,X+W,Y,R); x.closePath(); }
+async function drawCard(cd){
+  try{ await Promise.all([document.fonts.load('800 200px Manrope'), document.fonts.load('800 60px "Noto Sans KR"'), document.fonts.load('500 30px "Noto Sans KR"')]); }catch(e){}
+  const W=1080, H=1350, c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  const KR='"Noto Sans KR", Manrope, sans-serif', NUM='Manrope, "Noto Sans KR", sans-serif';
+  const up = cd.diff==null ? null : cd.diff>=0;
+  const accent = up==null ? '#ff7347' : up ? '#2ee59d' : '#ff5c5c';
+  // background
+  const bg = x.createLinearGradient(0,0,W,H); bg.addColorStop(0,'#0b1020'); bg.addColorStop(1,'#1b2742'); x.fillStyle=bg; x.fillRect(0,0,W,H);
+  const glow = x.createRadialGradient(W*0.78,H*0.36,20,W*0.78,H*0.36,620); glow.addColorStop(0, up===false?'rgba(255,92,92,.28)':'rgba(46,229,157,.26)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=glow; x.fillRect(0,0,W,H);
+  x.save(); x.globalAlpha=.05; x.strokeStyle='#fff'; x.lineWidth=2; for(let i=-H;i<W;i+=60){ x.beginPath(); x.moveTo(i,H); x.lineTo(i+H,0); x.stroke(); } x.restore();
+  // header
+  x.fillStyle='#fff'; x.font='800 44px '+KR; x.textBaseline='alphabetic'; x.fillText('🎳 볼링 동호회', 72, 120);
+  x.fillStyle='rgba(255,255,255,.6)'; x.font='500 34px '+KR; x.textAlign='right'; x.fillText(fmtDate(cd.date,true), W-72, 120); x.textAlign='left';
+  // name
+  x.fillStyle='#fff'; x.font='800 76px '+KR; x.fillText(cd.name, 72, 270);
+  // hero
+  x.fillStyle=accent; x.font='800 34px '+NUM; x.fillText('BEST GAME', 76, 370);
+  x.fillStyle='#fff'; x.font='800 300px '+NUM; x.fillText(String(cd.top), 60, 640);
+  // badges
+  let bx=76; const badge=(txt,col,fg)=>{ x.font='800 36px '+KR; const w=x.measureText(txt).width+56; rr(x,bx,690,w,72,36); x.fillStyle=col; x.fill(); x.fillStyle=fg; x.fillText(txt,bx+28,739); bx+=w+18; };
+  if(cd.top>=200) badge('🔥 200 CLUB','#ffcf33','#1a1200');
+  if(cd.d>0) badge('🏆 +'+Math.abs(cd.d).toLocaleString('ko-KR')+'원','#2ee59d','#04291b');
+  if(cd.rank===1 && cd.of>1) badge('👑 오늘 1위','#ffffff','#111');
+  // PnL-style diff
+  if(cd.diff!=null){
+    const pct = cd.a ? (cd.diff/cd.a*100) : 0, sg = cd.diff>=0?'+':'−';
+    const dy = bx>76 ? 0 : -50;
+    x.fillStyle=accent; x.font='800 120px '+NUM; x.fillText(sg+Math.abs(pct).toFixed(1)+'%', 72, 920+dy);
+    x.fillStyle='rgba(255,255,255,.65)'; x.font='500 34px '+KR; x.fillText('평균 대비 '+sg+(Math.round(Math.abs(cd.diff)*10)/10)+'점', 76, 975+dy);
+  }
+  // stat boxes
+  const stats = [...cd.arr.map((v,i)=>[(i+1)+'G', String(v)]), ['당일 평균', String(Math.round(cd.n*10)/10)], ['개인 평균', cd.a==null?'—':String(Math.round(cd.a*10)/10)], ['순위', cd.rank+' / '+cd.of]];
+  const cols = 3, bw=(W-144-2*24)/cols, bh=118; 
+  stats.slice(0,6).forEach((st,i)=>{ const cx=72+(i%cols)*(bw+24), cy=1010+Math.floor(i/cols)*(bh+20);
+    rr(x,cx,cy,bw,bh,22); x.fillStyle='rgba(255,255,255,.07)'; x.fill();
+    x.fillStyle='rgba(255,255,255,.55)'; x.font='500 28px '+KR; x.fillText(st[0], cx+26, cy+44);
+    x.fillStyle='#fff'; x.font='800 46px '+NUM; x.fillText(st[1], cx+26, cy+98); });
+  // footer
+  const site = /^https?:/.test(location.protocol) && location.host ? location.host + location.pathname.replace(/index\.html$/,'') : '';
+  if(site){ x.fillStyle='rgba(255,255,255,.4)'; x.font='500 26px '+NUM; x.fillText(site, 76, H-30); }
+  return c;
+}
+async function openCard(gid, id){
+  const g = S.games.find(x=>x.id===gid); const cd = g && cardData(g,id); if(!cd) return;
+  S.modal = {type:'card', loading:true}; renderModal();
+  const c = await drawCard(cd);
+  const url = c.toDataURL('image/png');
+  const blob = await new Promise(r=>c.toBlob(r,'image/png'));
+  const file = new File([blob], 'bowling_'+cd.date+'_'+cd.name+'.png', {type:'image/png'});
+  S.modal = {type:'card', img:url, file, cd, gid}; renderModal();
+}
+async function shareCardNative(){
+  const M=S.modal; if(!M||!M.file) return;
+  try{ await navigator.share({files:[M.file], title:'🎳 '+M.cd.name, text:'🎳 '+M.cd.name+' — '+M.cd.top}); }catch(e){ if(e && e.name!=='AbortError') toast(t('err', e.message||'share')); }
+}
+
 /* ---------------- texts ---------------- */
-function pollText(g){ return t('poll_text', fmtDate(g.date,true), (g.time?', '+g.time:'')); }
+function pollText(g){ return isDinner(g) ? t('poll_dinner', fmtDate(g.date,true), (g.time?', '+g.time:'') + (g.place?', '+g.place:'')) : t('poll_text', fmtDate(g.date,true), (g.time?', '+g.time:'')); }
 function teamsText(g){
   const att=attendees(g), k=g.teamCount||2; let s=t('teams_text', fmtDate(g.date,true))+'\n';
   for(let i=0;i<k;i++){ const ids=att.filter(id=>g.team?.[id]===i); const kn = ids.map(id=>avgIn(g,id)).filter(v=>v!=null); const ma = kn.length?Math.round(kn.reduce((a,b)=>a+b,0)/kn.length):0;
@@ -690,17 +810,23 @@ document.addEventListener('click', e=>{
   if(el.disabled) return;
   const g = id ? S.games.find(x=>x.id===id) : null;
   switch(act){
+    case 'card': openCard(id, el.dataset.m); break;
+    case 'cardShare': shareCardNative(); break;
+    case 'cardKakao': if(typeof kakaoShareImage==='function') kakaoShareImage(S.modal); break;
     case 'auth': if(TOKEN){ logout(); } else { S.modal={type:'login'}; renderModal(); setTimeout(()=>document.getElementById('lg_user')?.focus(),30); } break;
     case 'lang': lang=v; try{localStorage.setItem('bw_lang',v)}catch(_){} render(); break;
     case 'tab': S.tab=v; render(); window.scrollTo(0,0); break;
+    case 'ngKind': S.d.ng_kind = v; render(); break;
+    case 'closeDinner': S.modal={type:'confirm', title:t('dinner_close_q'), text:t('dinner_close_t'), onOk:()=>{ write('games/'+id, ()=>gdoc(id).update({status:'done', closedAt:Date.now()})).then(()=>{ S.gameSel=null; S.tab='history'; S.histOpen=id; render(); }); }}; renderModal(); break;
     case 'gsel': S.gameSel = v || null; render(); break;
     case 'mclose': closeModal(); break;
     case 'mok': { const fn=S.modal&&S.modal.onOk; closeModal(); fn&&fn(); break; }
     case 'createGame': {
       const date = dv('ng_date', today()); if(!date) return;
       const ref = S.db.collection('games').doc();
-      const body = {date, time:dv('ng_time', S.settings.time||''), status:'open', attending:{}, team:{}, teamCount:0, scores:{}, createdAt:Date.now()};
-      S.gameSel = ref.id; ['ng_date','ng_time'].forEach(k=>delete S.d[k]);
+      const kind = dv('ng_kind','bowling')==='dinner' ? 'dinner' : 'bowling';
+      const body = {date, kind, place: kind==='dinner' ? (dv('ng_place')||'').trim() : '', time:dv('ng_time', S.settings.time||''), status:'open', attending:{}, team:{}, teamCount:0, scores:{}, createdAt:Date.now()};
+      S.gameSel = ref.id; ['ng_date','ng_time','ng_kind','ng_place'].forEach(k=>delete S.d[k]);
       write('games/'+ref.id, ()=>ref.set(body)); render(); break; }
     case 'att': { const mid=el.dataset.m; const on=!g.attending?.[mid]; write('games/'+id, ()=>gdoc(id).update({attending:{[mid]:on}})); break; }
     case 'attAll': case 'attNone': { const att={}; S.members.filter(m=>m.active!==false).forEach(m=>att[m.id]=act==='attAll'?true:null); write('games/'+id, ()=>gdoc(id).update({attending:att})); break; }
@@ -740,7 +866,7 @@ document.addEventListener('click', e=>{
     case 'hist': S.histOpen = S.histOpen===id?null:id; render(); break;
     case 'delGame': S.modal={type:'confirm', title:t('del_game'), text:t('del_game_t'), okLabel:t('delete'), onOk:()=>{ write('games/'+id, ()=>gdoc(id).delete()); if(S.gameSel===id) S.gameSel=null; }}; renderModal(); break;
     case 'editGame': S.modal={type:'game', id}; renderModal(); break;
-    case 'saveGame': { const gg=S.games.find(x=>x.id===id)||{}; const upd={date:dv('eg_date',gg.date), time:dv('eg_time',gg.time||'')}; closeModal(); write('games/'+id, ()=>gdoc(id).update(upd)); break; }
+    case 'saveGame': { const gg=S.games.find(x=>x.id===id)||{}; const upd={date:dv('eg_date',gg.date), time:dv('eg_time',gg.time||'')}; if(isDinner(gg)) upd.place=(dv('eg_place',gg.place||'')||'').trim(); closeModal(); write('games/'+id, ()=>gdoc(id).update(upd)); break; }
     case 'addMember': {
       const name=(dv('nm_name')||'').trim(); if(!name){ document.getElementById('nm_name')?.focus(); return; }
       const base=num(dv('nm_avg'));
@@ -935,6 +1061,18 @@ function kakaoShare(text){
   const link = {mobileWebUrl:url, webUrl:url};
   try{ window.Kakao.Share.sendDefault({objectType:'text', text:tx, link, buttons:[{title:t('kakao_open'), link}]}); }
   catch(e){ console.error(e); toast(t('err', e.message||'Kakao')); }
+}
+async function kakaoShareImage(M){
+  if(!M || !M.file) return;
+  try{
+    const res = await window.Kakao.Share.uploadImage({file:[M.file]});
+    const img = res.infos.original.url;
+    const url = location.href.split('#')[0]; const link = {mobileWebUrl:url, webUrl:url};
+    const cd = M.cd; const r1 = v => Math.round(v*10)/10;
+    const title = '🎳 ' + cd.name + ' — BEST ' + cd.top + (cd.top>=200 ? ' 🔥' : '');
+    const desc = cd.arr.join(' / ') + ' · ⌀' + r1(cd.n) + (cd.diff!=null ? ' · 평균 대비 ' + (cd.diff>=0?'+':'−') + r1(Math.abs(cd.diff)) : '') + (cd.of>1 ? ' · ' + cd.rank + '위/' + cd.of : '');
+    window.Kakao.Share.sendDefault({objectType:'feed', content:{title, description:desc, imageUrl:img, imageWidth:1080, imageHeight:1350, link}, buttons:[{title:t('kakao_open'), link}]});
+  }catch(e){ console.error(e); toast(t('err', (e && (e.message||e.msg)) || 'Kakao')); }
 }
 function kakaoResultsText(g){
   const rows = resultsRows(g); const recv = rows.filter(r=>r.d>0).map(r=>r.name), pay = rows.filter(r=>r.d<0).map(r=>r.name);
