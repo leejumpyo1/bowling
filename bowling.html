@@ -86,6 +86,13 @@ tr.row-bad td{background:var(--bad-soft)}
 .sb.good .sbh{color:var(--good)}.sb.bad .sbh{color:var(--bad)}
 .si{display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:3px 0}
 .si span{font-variant-numeric:tabular-nums;color:var(--muted)}
+.acols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.acol{border-radius:12px;padding:10px 10px 8px;background:var(--bg);min-width:0}
+.acol .ach{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;justify-content:space-between}
+.acol.y{background:var(--good-soft)} .acol.y .ach{color:var(--good)}
+.acol.n{background:var(--bad-soft)} .acol.n .ach{color:var(--bad)}
+.acol.u .ach{color:var(--muted)}
+.aname{font-size:14px;padding:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill .av{color:var(--muted);font-size:12px;font-weight:500}
 .count{font-size:13px;font-weight:700;color:var(--muted)}
 .teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
@@ -225,8 +232,10 @@ const I18N = {
   poll_dinner:'🍽️ 회식 — {0}{1}\n아래 링크에서 참석/불참을 체크해 주세요 🙌',
   card_h:'내 결과 카드', card_making:'카드 만드는 중…', card_share:'공유', card_save:'저장', card_hint:'카카오톡, 인스타그램으로 공유하거나 갤러리에 저장하세요.', my_card:'내 지난 게임 결과', card_make:'카드 만들기',
   ocr_raw:'인식된 원문', ocr_raw_copy:'원문 복사',
+  pending_yes:'「참석」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', pending_no:'「불참」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', btn_yes:'✅ 참석', btn_no:'❌ 불참',
+  att_h:'참석 현황', none_ans:'미응답',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
-  kakao:'카카오톡 공유', kakao_open:'열기',
+  kakao:'카카오톡 공유', kakao_open:'열기', poll_kakao_line:'아래 버튼으로 참석/불참을 눌러 주세요 🙌',
   newest:'새 모임', open_games:'진행 중 게임', unknown:'(삭제됨)'
  }
 };
@@ -369,7 +378,7 @@ function render(){
   let h = '';
   if(S.noDb) h += `<div class="banner">${esc(t('nodb'))}</div>`;
   else if(S.stale) h += `<div class="banner">${esc(t('stale'))}</div>`;
-  if(S.canWrite===false) h += `<div class="banner">${esc(t('readonly'))}</div>`;
+
   const ready = S.noDb || Object.values(S.loaded).every(Boolean);
   if(!ready && !S.stale) h += `<div class="card empty">${esc(t('loading'))}</div>`;
   else h += ({game:vGame, members:vMembers, history:vHistory, kassa:vKassa, settings:vSettings})[S.tab]();
@@ -381,6 +390,17 @@ function render(){
 const dv = (k, def='') => S.d[k] ?? def;
 const ro = () => S.canWrite===false ? 'disabled' : '';
 const isAdmin = () => S.canWrite!==false;
+/* one-tap RSVP from KakaoTalk buttons: ?g=<gameId>&rsvp=1|0 */
+(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('g') && q.get('rsvp')!=null){ S.pendingRsvp={gid:q.get('g'), val:q.get('rsvp')==='1'}; history.replaceState(null,'',location.pathname); } }catch(e){} })();
+function handlePendingRsvp(){
+  const P = S.pendingRsvp; if(!P) return;
+  const g = S.games.find(x=>x.id===P.gid); if(!g) return;
+  if(g.status==='done'){ S.pendingRsvp=null; return; }
+  S.gameSel = g.id; S.tab = 'game';
+  if(S.me && member(S.me)){ S.pendingRsvp=null; doRsvp(g.id, S.me, P.val); }
+  else render();
+}
+function rsvpLink(g, val){ return location.href.split(/[?#]/)[0] + '?g=' + encodeURIComponent(g.id) + '&rsvp=' + (val?1:0); }
 const DEFAULT_TIME = '18:30';
 function timeSelect(id, key, val){
   const opts = []; for(let h=0;h<24;h++) for(const m of ['00','30']) opts.push(String(h).padStart(2,'0')+':'+m);
@@ -442,6 +462,11 @@ function vGameInner(){
   h += rsvpCard(g);
   // step 1
   const nNo = actM.filter(m=>g.attending?.[m.id]===false).length;
+  if(!isAdmin()){
+    const yes = actM.filter(m=>g.attending?.[m.id]===true), no = actM.filter(m=>g.attending?.[m.id]===false), none = actM.filter(m=>g.attending?.[m.id]!==true && g.attending?.[m.id]!==false);
+    const col = (cls, title, list) => `<div class="acol ${cls}"><div class="ach">${esc(title)} <span>${list.length}</span></div>${list.length?list.map(m=>`<div class="aname">${esc(m.name)}</div>`).join(''):'<div class="hint">—</div>'}</div>`;
+    h += `<div class="card"><h3>${esc(t('att_h'))}</h3><div class="acols">${col('y', t('yes'), yes)}${col('n', t('no'), no)}${col('u', t('none_ans'), none)}</div></div>`;
+  } else {
   h += `<div class="card"><div class="step"><div class="n">1</div><h3 class="grow">${esc(t('s1'))}</h3><span class="count">${esc(t('going', att.length, nNo, actM.length-att.length-nNo))}</span></div>`;
   if(!actM.length) h += `<div class="hint">${esc(t('no_members'))}</div>`;
   else {
@@ -450,6 +475,7 @@ function vGameInner(){
     h += `<div class="pills">${actM.map(m=>{ const on=!!g.attending?.[m.id], off=g.attending?.[m.id]===false; return `<button class="pill ${on?'on':''} ${off?'off':''}" data-act="att" data-id="${g.id}" data-m="${m.id}" ${ro()}><span class="dot">${on?'✓':off?'✕':''}</span>${esc(m.name)} <span class="av">${fa(avgIn(g,m.id))}</span></button>`; }).join('')}</div>`;
   }
   h += `</div>`;
+  }
 
   if(isDinner(g)){
     if(isAdmin()) h += `<div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn pri" data-act="closeDinner" data-id="${g.id}">✓ ${esc(t('dinner_close'))}</button></div>`;
@@ -509,6 +535,7 @@ function rsvpCard(g){
   if(S.meNew) h += `<div class="row" style="margin-top:10px"><input class="in grow" id="newName" data-d="newName" maxlength="20" placeholder="${esc(t('your_name'))}" value="${esc(dv('newName'))}"><button class="btn pri" data-act="joinGo" data-id="${g.id}">✓ ${esc(t('join_go'))}</button></div>`;
   else if(me) h += `<div class="row rsvp-btns" style="margin-top:12px"><button class="btn ${st===true?'yes':''}" data-act="rsvp" data-id="${g.id}" data-v="1">✓ ${esc(t('yes'))}</button><button class="btn ${st===false?'no':''}" data-act="rsvp" data-id="${g.id}" data-v="0">✕ ${esc(t('no'))}</button></div>
     <div class="hint" style="margin-top:8px">${esc(st===true?t('st_yes'):st===false?t('st_no'):t('st_none'))}${st===true&&g.teamCount&&g.team?.[me]!=null?' · 🎳 '+esc(t('team', laneLabel(g.team[me]))):''}</div>`;
+  else if(S.pendingRsvp && S.pendingRsvp.gid===g.id) h += `<div class="banner" style="margin-top:10px">${S.pendingRsvp.val?'✅':'❌'} ${esc(t(S.pendingRsvp.val?'pending_yes':'pending_no'))}</div>`;
   else h += `<div class="hint" style="margin-top:8px">${esc(t('rsvp_hint'))}</div>`;
   return h + `</div>`;
 }
@@ -805,7 +832,7 @@ document.addEventListener('change', e=>{
     saveScores(g, [mid]);
   }
   if(el.id==='ocrFile' && el.files && el.files[0]){ runOcr(el.files[0]); }
-  if(el.dataset.me){ if(el.value==='__new'){ S.meNew=true; } else { S.meNew=false; setMe(el.value); } render(); if(S.meNew) document.getElementById('newName')?.focus(); }
+  if(el.dataset.me){ if(el.value==='__new'){ S.meNew=true; } else { S.meNew=false; setMe(el.value); } render(); if(S.meNew) document.getElementById('newName')?.focus(); else handlePendingRsvp(); }
   if(el.dataset.move){
     const gid=el.dataset.move, mid=el.dataset.m;
     write('games/'+gid, ()=>gdoc(gid).update({team:{[mid]: Number(el.value)}}));
@@ -841,7 +868,7 @@ document.addEventListener('click', e=>{
     case 'attAll': case 'attNone': { const att={}; S.members.filter(m=>m.active!==false).forEach(m=>att[m.id]=act==='attAll'?true:null); write('games/'+id, ()=>gdoc(id).update({attending:att})); break; }
     case 'rsvp': if(S.me) doRsvp(id, S.me, v==='1'); break;
     case 'joinGo': { const nm=(dv('newName')||'').trim(); if(!nm){ document.getElementById('newName')?.focus(); return; }
-      delete S.d.newName; S.meNew=false; doJoin(nm, id); break; }
+      delete S.d.newName; S.meNew=false; S.pendingRsvp=null; doJoin(nm, id); break; }
     case 'copyPoll': copyText(pollText(g) + '\n' + location.href.split('#')[0]); break;
     case 'gen': case 'shuffle': {
       const k = Math.round(num(dv('tc_'+id)) ?? (g.teamCount || autoK(attendees(g).length)));
@@ -867,7 +894,7 @@ document.addEventListener('click', e=>{
       write('games/'+gg.id, ()=>gdoc(gg.id).update({attending:att})).then(()=>saveScores(S.games.find(x=>x.id===id)||gg, r.found.map(f=>f.id)));
       toast(t('paste_ok', r.found.length) + (r.unknown.length? ' · '+t('paste_unknown', r.unknown.join(', ')) : ''));
       break; }
-    case 'kPoll': kakaoShare(pollText(g)); break;
+    case 'kPoll': kakaoShare(pollText(g).replace(/\n[^\n]*$/, '\n' + t('poll_kakao_line')), [{title:t('btn_yes'), url:rsvpLink(g,true)}, {title:t('btn_no'), url:rsvpLink(g,false)}]); break;
     case 'kTeams': kakaoShare(teamsText(g)); break;
     case 'kRes': kakaoShare(kakaoResultsText(g)); break;
     case 'copyResults': copyText(resultsText(g)); break;
@@ -1065,13 +1092,14 @@ function kakaoInit(){
   document.head.appendChild(sc);
 }
 function kakaoBtn(act, id){ return kakaoReady ? `<button class="btn sm kakao" data-act="${act}" data-id="${id}">💬 ${esc(t('kakao'))}</button>` : ''; }
-function kakaoShare(text){
-  const url = location.href.split('#')[0];
+function kakaoShare(text, btns){
+  const url = location.href.split(/[?#]/)[0];
   const tail = '\n👉 ' + url;                                        // ссылка прямо в тексте — на случай, если кнопка не появится
   const room = 200 - tail.length;                                     // лимит текстового шаблона — 200 символов
   const tx = (text.length > room ? text.slice(0, room-1) + '…' : text) + tail;
   const link = {mobileWebUrl:url, webUrl:url};
-  try{ window.Kakao.Share.sendDefault({objectType:'text', text:tx, link, buttons:[{title:t('kakao_open'), link}]}); }
+  const buttons = btns && btns.length ? btns.map(b=>({title:b.title, link:{mobileWebUrl:b.url, webUrl:b.url}})) : [{title:t('kakao_open'), link}];
+  try{ window.Kakao.Share.sendDefault({objectType:'text', text:tx, link, buttons}); }
   catch(e){ console.error(e); toast(t('err', e.message||'Kakao')); }
 }
 async function kakaoShareImage(M){
@@ -1101,6 +1129,7 @@ kakaoInit();
   S.db = API_DB; S.canWrite = !!TOKEN;
   try{ await loadAll(); S.stale = false; }catch(e){ console.error(e); S.stale = true; }
   Object.keys(S.loaded).forEach(k=>S.loaded[k]=true); render();
+  handlePendingRsvp();
   setInterval(async ()=>{
     if(document.visibilityState!=='visible' || pending) return;
     try{ const ch = await loadAll(); if(S.stale || ch){ S.stale = false; render(); } }
