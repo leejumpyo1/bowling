@@ -156,7 +156,7 @@ table.sc input.in{width:84px;text-align:right;padding:7px 9px}
 <header class="top"><div class="wrap">
   <div class="brand">
     <div style="font-size:28px">🎳</div>
-    <div><h1 id="appTitle"></h1><div class="sub" id="appSub"></div></div>
+    <div><h1 id="appTitle"></h1><div class="sub" id="appSub" style="display:none"></div></div>
     <div class="sp"></div>
     <button class="authbtn" id="authBtn" data-act="auth"></button>
   </div>
@@ -363,8 +363,8 @@ function render(){
   document.documentElement.lang = lang;
   document.title = t('app');
   document.getElementById('appTitle').textContent = t('app');
-  document.getElementById('appSub').textContent = t('sub');
-  document.getElementById('authBtn').textContent = TOKEN ? '🔓 '+t('logout') : '🔒 '+t('login');
+  document.getElementById('appSub').textContent = '';
+  document.getElementById('authBtn').textContent = TOKEN ? '🔓 '+t('logout') : '🔒 관리자';
   document.getElementById('authBtn').style.display = S.noDb ? 'none' : '';
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on', b.dataset.v===lang));
   const tabs = ['game','members','history'];
