@@ -4,9 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>동해 B.C</title>
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:title" content="동해 B.C">
+<meta property="og:description" content="동해 볼링 동호회">
+<meta property="og:image" content="https://leejumpyo1.github.io/bowling/logo_kakao.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f4f1ec; --card:#ffffff; --ink:#1d1b22; --muted:#6d6874; --line:#e6e1da;
@@ -32,7 +37,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 header.top{background:var(--lane);color:#fff;padding:18px 0 0}
 header.top .wrap{padding-bottom:0}
 .brand{display:flex;align-items:center;gap:12px}
-.brand h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.01em}
+.brand h1{font-size:25px;margin:0;font-weight:900;letter-spacing:.02em;line-height:1}
+.brand .logo-mark{height:50px;width:auto;flex:none;display:block;margin:-4px -2px -2px -6px}
+.brand{gap:10px}
 .brand .sub{font-size:12.5px;opacity:.7}
 .brand .sp{flex:1}
 .authbtn{border:1px solid rgba(255,255,255,.3);background:none;color:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px;cursor:pointer;margin-right:8px;white-space:nowrap}
@@ -156,7 +163,10 @@ table.sc input.in{width:84px;text-align:right;padding:7px 9px}
 <body>
 <header class="top"><div class="wrap">
   <div class="brand">
-    <div style="font-size:28px">🎳</div>
+    <svg class="logo-mark" viewBox="60 40 480 345" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<radialGradient id="ballG" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#6b7180"/><stop offset=".45" stop-color="#2b2f3a"/><stop offset="1" stop-color="#0b0d12"/></radialGradient>
+<linearGradient id="pinG" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f4f4f4"/><stop offset="1" stop-color="#c9ccd3"/></linearGradient>
+</defs><g transform="rotate(-22 175 320)"><path d="M175.0,70.0 C202.5,70.0 210.0,107.5 202.5,135.0 C195.0,160.0 190.0,170.0 192.5,185.0 C197.5,207.5 232.5,227.5 227.5,270.0 C225.0,302.5 210.0,320.0 175.0,320.0 C140.0,320.0 125.0,302.5 122.5,270.0 C117.5,227.5 152.5,207.5 157.5,185.0 C160.0,170.0 155.0,160.0 147.5,135.0 C140.0,107.5 147.5,70.0 175.0,70.0 Z" fill="url(#pinG)"/><path d="M152.5,147.5 Q175.0,155.0 197.5,147.5 L196.2,158.8 Q175.0,166.2 153.8,158.8 Z" fill="#e0312f"/><path d="M156.2,170.0 Q175.0,177.5 193.8,170.0 L193.8,181.2 Q175.0,188.8 156.2,181.2 Z" fill="#e0312f"/></g><g transform="rotate(22 425 320)"><path d="M425.0,70.0 C452.5,70.0 460.0,107.5 452.5,135.0 C445.0,160.0 440.0,170.0 442.5,185.0 C447.5,207.5 482.5,227.5 477.5,270.0 C475.0,302.5 460.0,320.0 425.0,320.0 C390.0,320.0 375.0,302.5 372.5,270.0 C367.5,227.5 402.5,207.5 407.5,185.0 C410.0,170.0 405.0,160.0 397.5,135.0 C390.0,107.5 397.5,70.0 425.0,70.0 Z" fill="url(#pinG)"/><path d="M402.5,147.5 Q425.0,155.0 447.5,147.5 L446.2,158.8 Q425.0,166.2 403.8,158.8 Z" fill="#e0312f"/><path d="M406.2,170.0 Q425.0,177.5 443.8,170.0 L443.8,181.2 Q425.0,188.8 406.2,181.2 Z" fill="#e0312f"/></g><circle cx="300" cy="235" r="121" style="fill:var(--lane)"/><circle cx="300" cy="235" r="110" fill="url(#ballG)"/><ellipse cx="258" cy="182" rx="34" ry="18" transform="rotate(-35 258 182)" fill="#fff" opacity=".35"/><circle cx="330" cy="178" r="12" fill="#05060a"/><circle cx="328" cy="176" r="9" fill="#1a1d25"/><circle cx="358" cy="196" r="12" fill="#05060a"/><circle cx="356" cy="194" r="9" fill="#1a1d25"/><circle cx="336" cy="212" r="15" fill="#05060a"/><circle cx="334" cy="210" r="12" fill="#1a1d25"/><path d="M120,330 C170,350 220,352 262,340" stroke="#fff" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M150,358 C190,370 225,370 255,362" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M480,330 C430,350 380,352 338,340" stroke="#fff" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M450,358 C410,370 375,370 345,362" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round"/></svg>
     <div><h1 id="appTitle"></h1><div class="sub" id="appSub" style="display:none"></div></div>
     <div class="sp"></div>
     <button class="authbtn" id="authBtn" data-act="auth"></button>
