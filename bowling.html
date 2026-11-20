@@ -237,7 +237,7 @@ const I18N = {
   att_h:'참석 현황', none_ans:'미응답',
   tab_fees:'💰 회비', ym:'{0}년 {1}월', mon:'{0}월', day_sfx:'일', cnt:'건',
   fee_balance:'현재 잔액', fee_settings:'설정', fee_year_in:'{0}년 입금', fee_year_out:'{0}년 지출',
-  fee_dues_h:'월 회비', fee_dues_hint:'월 회비 {0} · 이름 옆 버튼을 누르면 납부/수정', fee_unpaid:'미납', fee_pause:'일시중지', fee_paid:'납부',
+  fee_dues_h:'월 회비', fee_dues_hint:'월 회비 {0} · 이름 옆 버튼을 누르면 납부/수정', fee_dues_hint_ro:'월 회비 {0} · 수정은 관리자만 가능합니다', fee_unpaid:'미납', fee_pause:'일시중지', fee_paid:'납부',
   fee_month_sum:'이번 달 입금 {0}', fee_remind:'미납 알림 복사 ({0}명)', fee_remind_text:'💰 {0} 회비 미납 안내\n{1}\n\n회비 {2} 입금 부탁드립니다 🙏', fee_remind_acc:'계좌: {0}',
   fee_exp_h:'지출 · 기타 수입', fee_item:'내용', fee_item_ph:'예: 11월 1차 정기전 게임비 + 음료값', fee_add_exp:'지출 추가', fee_add_inc:'수입 추가',
   fee_edit_h:'{0} · {1} 회비', fee_mark_paid:'납부 저장', fee_mark_unpaid:'미납으로', fee_mark_pause:'일시중지',
@@ -382,7 +382,7 @@ function render(){
   document.getElementById('authBtn').textContent = TOKEN ? '🔓 '+t('logout') : '🔒 관리자';
   document.getElementById('authBtn').style.display = S.noDb ? 'none' : '';
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on', b.dataset.v===lang));
-  const tabs = ['game','members','history', ...(isAdmin()?['fees']:[])];
+  const tabs = ['game','members','history','fees'];
   if(!tabs.includes(S.tab)) S.tab='game';
   document.getElementById('tabs').innerHTML = tabs.map(k=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${esc(t('tab_'+k))}</button>`).join('');
 
@@ -736,11 +736,11 @@ const balanceNow = () => carryTotal() + allYms().reduce((a,x)=>a+monthFlow(x).ne
 const entryDay = e => String(e.date||'').length>=10 ? Number(e.date.slice(8,10))+t('day_sfx') : '';
 
 function vFees(){
-  if(!isAdmin()) return `<div class="card empty">🔒</div>`;
+  const adm = isAdmin();
   const ym = S.feeYm || (S.feeYm = ymNow()); const y = ym.slice(0,4);
   const bal = balanceNow();
   let yin=0, yout=0; allYms().filter(x=>x.startsWith(y)).forEach(x=>{ const f=monthFlow(x); yin+=f.fee+f.inc; yout+=f.exp; });
-  let h = `<div class="card"><div class="row between"><div class="hint">${esc(t('fee_balance'))}</div><button class="btn ghost sm" data-act="feeSet">⚙️ ${esc(t('fee_settings'))}</button></div>
+  let h = `<div class="card"><div class="row between"><div class="hint">${esc(t('fee_balance'))}</div>${adm?`<button class="btn ghost sm" data-act="feeSet">⚙️ ${esc(t('fee_settings'))}</button>`:''}</div>
     <div class="big ${bal<0?'neg':''}">${esc(won(bal))}</div>
     <div class="stats"><div class="stat"><div class="k">${esc(t('fee_year_in', y))}</div><div class="v pos">+${esc(won(yin))}</div></div>
     <div class="stat"><div class="k">${esc(t('fee_year_out', y))}</div><div class="v neg">−${esc(won(yout))}</div></div></div></div>`;
@@ -751,26 +751,26 @@ function vFees(){
   const paidN = ids.filter(id=>isPaid(feeCell(ym,id))).length, pauseN = ids.filter(id=>feeCell(ym,id)==='pause').length;
   const unpaid = ids.filter(id=>!feeCell(ym,id));
   h += `<div class="card"><div class="row between"><h2>💰 ${esc(t('fee_dues_h'))}</h2><span class="count">${paidN}/${ids.length-pauseN}</span></div>
-    <div class="hint">${esc(t('fee_dues_hint', won(feeDues(y))))}</div>
+    <div class="hint">${esc(adm?t('fee_dues_hint', won(feeDues(y))):t('fee_dues_hint_ro', won(feeDues(y))))}</div>
     <div class="list" style="margin-top:6px">${ids.map(id=>{ const v=feeCell(ym,id);
-      const st = isPaid(v) ? `<span class="hint" style="font-size:12px">${v.d?esc(fmtDate(v.d)):''}</span><button class="pill on" data-act="feeTap" data-m="${id}"><span class="dot">✓</span>${esc(won(v.a))}</button>`
-        : v==='pause' ? `<button class="pill" data-act="feeTap" data-m="${id}" style="opacity:.6">⏸ ${esc(t('fee_pause'))}</button>`
-        : `<button class="pill" data-act="feeTap" data-m="${id}" style="border-color:var(--bad,#d33);color:var(--bad,#d33)"><span class="dot"></span>${esc(t('fee_unpaid'))}</button>`;
+      const st = isPaid(v) ? `<span class="hint" style="font-size:12px">${v.d?esc(fmtDate(v.d)):''}</span><button class="pill on" ${adm?`data-act="feeTap" data-m="${id}"`:'disabled style="cursor:default"'}><span class="dot">✓</span>${esc(won(v.a))}</button>`
+        : v==='pause' ? `<button class="pill" ${adm?`data-act="feeTap" data-m="${id}"`:'disabled style="cursor:default"'} style="opacity:.6">⏸ ${esc(t('fee_pause'))}</button>`
+        : `<button class="pill" ${adm?`data-act="feeTap" data-m="${id}"`:'disabled style="cursor:default"'} style="border-color:var(--bad,#d33);color:var(--bad,#d33)"><span class="dot"></span>${esc(t('fee_unpaid'))}</button>`;
       return `<div class="it"><span class="grow"><b>${esc(mname(id))}</b></span>${st}</div>`; }).join('')}</div>
     <div class="row" style="margin-top:12px;flex-wrap:wrap"><span class="hint grow">${esc(t('fee_month_sum', won(f.fee)))}</span>
-      ${unpaid.length?`<button class="btn sm" data-act="feeRemind">📋 ${esc(t('fee_remind', unpaid.length))}</button>`:''}</div></div>`;
+      ${unpaid.length&&adm?`<button class="btn sm" data-act="feeRemind">📋 ${esc(t('fee_remind', unpaid.length))}</button>`:''}</div></div>`;
 
   // 2) cash entries
   const es = cashEntries().filter(e=>ymOf(e.date)===ym).sort((a,b)=>(a.date||'')<(b.date||'')?-1:(a.date||'')>(b.date||'')?1:(a.createdAt||0)-(b.createdAt||0));
   h += `<div class="card"><div class="row between"><h2>🧾 ${esc(t('fee_exp_h'))}</h2><span class="hint">−${esc(won(f.exp))}${f.inc?` · +${esc(won(f.inc))}`:''}</span></div>
-    <div class="list" style="margin-top:6px">${es.length?es.map(e=>`<div class="it"><span class="hint" style="width:34px;font-size:12px">${esc(entryDay(e))}</span><span>${CAT_ICON[e.type==='inc'?'inc':(e.cat||'etc')]||'📦'}</span><span class="grow" style="font-size:14px">${esc(e.item||'—')}</span><b class="${e.type==='inc'?'pos':'neg'}" style="white-space:nowrap">${e.type==='inc'?'+':'−'}${esc(won(e.amount))}</b><button class="btn ghost sm" data-act="delCash" data-id="${e.id}">✕</button></div>`).join(''):`<div class="empty" style="padding:10px">—</div>`}</div>
-    <div class="grid2" style="margin-top:12px">
+    <div class="list" style="margin-top:6px">${es.length?es.map(e=>`<div class="it"><span class="hint" style="width:34px;font-size:12px">${esc(entryDay(e))}</span><span>${CAT_ICON[e.type==='inc'?'inc':(e.cat||'etc')]||'📦'}</span><span class="grow" style="font-size:14px">${esc(e.item||'—')}</span><b class="${e.type==='inc'?'pos':'neg'}" style="white-space:nowrap">${e.type==='inc'?'+':'−'}${esc(won(e.amount))}</b>${adm?`<button class="btn ghost sm" data-act="delCash" data-id="${e.id}">✕</button>`:''}</div>`).join(''):`<div class="empty" style="padding:10px">—</div>`}</div>
+    ${adm?`<div class="grid2" style="margin-top:12px">
       <label class="f">${esc(t('date'))}<input class="in" type="date" id="fe_date" data-d="fe_date" value="${esc(dv('fe_date', ym===ymNow()?today():ym+'-01'))}"></label>
       <label class="f">${esc(t('amount'))}<input class="in" type="number" id="fe_amt" data-d="fe_amt" value="${esc(dv('fe_amt'))}" inputmode="numeric" placeholder="157500"></label>
     </div>
     <label class="f" style="margin-top:10px">${esc(t('fee_item'))}<input class="in" id="fe_item" data-d="fe_item" value="${esc(dv('fe_item'))}" placeholder="${esc(t('fee_item_ph'))}"></label>
     <div class="pills" style="margin-top:10px">${CATS.map(c=>`<button class="pill ${dv('fe_cat','game')===c?'on':''}" data-act="feCat" data-v="${c}">${CAT_ICON[c]} ${esc(t('cat_'+c))}</button>`).join('')}</div>
-    <div class="row" style="margin-top:12px"><button class="btn pri" data-act="addCash" data-v="exp">− ${esc(t('fee_add_exp'))}</button><button class="btn" data-act="addCash" data-v="inc">＋ ${esc(t('fee_add_inc'))}</button></div></div>`;
+    <div class="row" style="margin-top:12px"><button class="btn pri" data-act="addCash" data-v="exp">− ${esc(t('fee_add_exp'))}</button><button class="btn" data-act="addCash" data-v="inc">＋ ${esc(t('fee_add_inc'))}</button></div>`:''}</div>`;
 
   // 3) report
   const r = S.d.rep_from || ymAdd(ymNow(), -5), r2 = S.d.rep_to || ymNow();
@@ -1159,24 +1159,24 @@ document.addEventListener('click', e=>{
       write('ledger/new', ()=>S.db.collection('ledger').add(body)); delete S.d.le_amt; delete S.d.le_note; render(); break; }
     case 'delEntry': S.modal={type:'confirm', title:t('delete')+'?', text:'', okLabel:t('delete'), onOk:()=>write('ledger/'+id, ()=>S.db.collection('ledger').doc(id).delete())}; renderModal(); break;
     case 'feeYm': S.feeYm = ymAdd(S.feeYm||ymNow(), Number(v)); delete S.d.fe_date; render(); break;
-    case 'feeTap': { const ym=S.feeYm||ymNow(), mid=el.dataset.m, y=ym.slice(0,4), mk=String(Number(ym.slice(5)));
+    case 'feeTap': { if(!isAdmin()) break; const ym=S.feeYm||ymNow(), mid=el.dataset.m, y=ym.slice(0,4), mk=String(Number(ym.slice(5)));
       if(!feeCell(ym, mid)) saveFee(y, mid, mk, {a:feeDues(y), d:today()});
       else { S.modal={type:'fee', ym, m:mid}; renderModal(); } break; }
-    case 'feeSave': { const M=S.modal; if(!M) break; const y=M.ym.slice(0,4), mk=String(Number(M.ym.slice(5)));
+    case 'feeSave': { if(!isAdmin()) break; const M=S.modal; if(!M) break; const y=M.ym.slice(0,4), mk=String(Number(M.ym.slice(5)));
       let val=null; if(v==='pause') val='pause'; else if(v==='paid'){ const a=num(dv('fm_amt', '')); const old=feeCell(M.ym,M.m);
         const amt = a ?? (isPaid(old)?old.a:feeDues(y)); if(!amt){ toast(t('fee_need_amt')); break; } val={a:amt, d:dv('fm_date', isPaid(old)&&old.d?old.d:today())}; }
       closeModal(); saveFee(y, M.m, mk, val); break; }
     case 'feeSet': S.modal={type:'feeSet'}; renderModal(); break;
-    case 'feeSetSave': { const y=(S.feeYm||ymNow()).slice(0,4); const upd={dues:num(dv('fs_dues', feeDues(y)))||30000, carry:num(dv('fs_carry', (feeDoc(y)||{}).carry))||0, account:String(dv('fs_acc', (feeDoc(y)||{}).account??feeAccount())).trim()};
+    case 'feeSetSave': { if(!isAdmin()) break; const y=(S.feeYm||ymNow()).slice(0,4); const upd={dues:num(dv('fs_dues', feeDues(y)))||30000, carry:num(dv('fs_carry', (feeDoc(y)||{}).carry))||0, account:String(dv('fs_acc', (feeDoc(y)||{}).account??feeAccount())).trim()};
       closeModal(); feeWrite(y, upd); break; }
     case 'feeRemind': { const ym=S.feeYm||ymNow(); const un=feeIds([ym]).filter(id=>!feeCell(ym,id)); const acc=feeAccount();
       copyText(t('fee_remind_text', ymLabel(ym), un.map(mname).join(', '), won(feeDues(ym.slice(0,4)))) + (acc?'\n'+t('fee_remind_acc', acc):'')); break; }
     case 'feCat': S.d.fe_cat=v; render(); break;
-    case 'addCash': { const amt=num(dv('fe_amt')); if(!amt){ toast(t('fee_need_amt')); document.getElementById('fe_amt')?.focus(); break; }
+    case 'addCash': { if(!isAdmin()) break; const amt=num(dv('fe_amt')); if(!amt){ toast(t('fee_need_amt')); document.getElementById('fe_amt')?.focus(); break; }
       const ym=S.feeYm||ymNow(); const date=dv('fe_date', ym===ymNow()?today():ym+'-01');
       const body={type:v==='inc'?'inc':'exp', date, amount:Math.abs(amt), item:(dv('fe_item')||'').trim(), createdAt:Date.now()}; if(v!=='inc') body.cat=dv('fe_cat','game');
       write('ledger/new', ()=>S.db.collection('ledger').add(body)); delete S.d.fe_amt; delete S.d.fe_item; render(); break; }
-    case 'delCash': { const e=S.ledger.find(x=>x.id===id); S.modal={type:'confirm', title:t('delete')+'?', text:e?`${e.item||''} ${won(e.amount)}`:'', okLabel:t('delete'), onOk:()=>write('ledger/'+id, ()=>S.db.collection('ledger').doc(id).delete())}; renderModal(); break; }
+    case 'delCash': { if(!isAdmin()) break; const e=S.ledger.find(x=>x.id===id); S.modal={type:'confirm', title:t('delete')+'?', text:e?`${e.item||''} ${won(e.amount)}`:'', okLabel:t('delete'), onOk:()=>write('ledger/'+id, ()=>S.db.collection('ledger').doc(id).delete())}; renderModal(); break; }
     case 'rep': { const [a,b]=repPeriod(v); S.modal={type:'report', from:a, to:b}; renderModal(); break; }
     case 'repCopy': if(S.modal) copyText(reportText(buildReport(S.modal.from, S.modal.to))); break;
     case 'repKakao': if(S.modal && typeof kakaoShare==='function') kakaoShare(reportText(buildReport(S.modal.from, S.modal.to)).split('\n\n📅')[0].split('\n\n⚠️')[0]); break;
