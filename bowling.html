@@ -246,6 +246,7 @@ const I18N = {
   rep_h:'보고서', rep_title:'회비 보고서', rep_m0:'이번 달', rep_m1:'지난 달', rep_h1:'상반기', rep_h2:'하반기', rep_y0:'올해', rep_y1:'작년',
   rep_from:'시작', rep_to:'끝', rep_go:'보기', rep_period:'기간', rep_open:'시작 잔액', rep_fee:'회비 입금', rep_inc:'기타 수입 (이자 등)', rep_exp:'지출', rep_close:'종료 잔액',
   rep_monthly:'월별 내역', rep_in:'입금', rep_out:'지출', rep_bal:'잔액', rep_matrix:'회원별 납부', rep_sum:'합계', rep_unpaid:'미납', rep_all_paid:'미납 없음 👍', rep_details:'지출 세부내역',
+  xl_btn:'{0}년 엑셀', xl_hint:'연간회비 · 월별내역 (엑셀 양식)', xl_making:'엑셀 파일 만드는 중…',
   rep_copy:'텍스트 복사', rep_print:'PDF · 인쇄', rep_popup:'팝업이 차단되었습니다', rep_made:'작성일 {0}',
   proj_col:'{0} 예상', proj_hint:'예상 평균 = {0}년 전체 게임 평균, 게임마다 자동 갱신. 화살표는 기준 평균과의 차이입니다.',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
@@ -779,8 +780,51 @@ function vFees(){
     <div class="row" style="margin-top:12px;align-items:flex-end;flex-wrap:wrap">
       <label class="f grow">${esc(t('rep_from'))}<select class="in" data-d="rep_from">${opts(r)}</select></label>
       <label class="f grow">${esc(t('rep_to'))}<select class="in" data-d="rep_to">${opts(r2)}</select></label>
-      <button class="btn pri" data-act="rep" data-v="custom">${esc(t('rep_go'))}</button></div></div>`;
+      <button class="btn pri" data-act="rep" data-v="custom">${esc(t('rep_go'))}</button></div>
+    <div class="row" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><span class="hint grow">${esc(t('xl_hint'))}</span><button class="btn" data-act="feeXlsx" data-v="${y}">📥 ${esc(t('xl_btn', y))}</button></div></div>`;
   return h;
+}
+
+/* ---- Excel (same layout as 연간회비 / 월별내역) ---- */
+function feeTables(y){
+  y = String(y); const fd = feeDoc(y) || {}; const yms = ymRange(y+'-01', y+'-12');
+  const open = balanceBefore(y+'-01');
+  const ids = feeIds(yms);
+  const H = ['NO.','이 름','납입액','이월회비']; for(let m=1;m<=12;m++) H.push(m+'월',''); H.push('비 고');
+  const acc = fd.account || feeAccount();
+  const A = [[` ■ ${y}년 동해모임 회비 내역` + (acc?` ※ 계좌번호 : ${acc} ※`:'')], H];
+  const msum = Array(12).fill(0); let all = 0;
+  const pushRow = (no, name, cells, carry) => { const row=[no, name, 0, carry||'']; let tot=Number(carry)||0;
+    cells.forEach((c,i)=>{ if(c && typeof c==='object'){ row.push(c.a, c.d||''); tot+=c.a; msum[i]+=c.a; } else row.push('', c==='pause'?'일시중지':''); });
+    row[2]=tot; all+=tot; row.push(''); A.push(row); };
+  let no=1;
+  ids.forEach(id=>pushRow(no++, mname(id), yms.map(ym=>{ const v=feeCell(ym,id); return isPaid(v)?{a:Number(v.a)||0, d:v.d||''}:v; })));
+  const incs = {}; cashEntries().filter(e=>e.type==='inc' && String(e.date||'').startsWith(y)).forEach(e=>{ const k=e.item||'기타 수입'; (incs[k]=incs[k]||Array(12).fill(null)); const i=Number(String(e.date).slice(5,7))-1; const c=incs[k][i]||{a:0,d:''}; c.a+=Number(e.amount)||0; if(String(e.date).length>=10) c.d=e.date; incs[k][i]=c; });
+  Object.keys(incs).forEach(k=>pushRow(no++, k, incs[k]));
+  if(open) { const r=['', '이월 잔액', open, open]; for(let i=0;i<24;i++) r.push(''); r.push(''); A.push(r); all+=open; }
+  const T=['합계','', all, open||'']; msum.forEach(s=>T.push(s,'')); T.push(''); A.push(T);
+  const M = [['', `${y}년 월 세부내역`], [], ['', '구분','회비 입금액','지출액','지출 주요 내용','잔액'], ['', '이월', open, '', '', open]];
+  let bal=open, tin=open, tout=0;
+  yms.forEach(ym=>{ const f=monthFlow(ym); bal+=f.net; tin+=f.fee+f.inc; tout+=f.exp;
+    const desc = cashEntries().filter(e=>e.type==='exp' && ymOf(e.date)===ym).sort((a,b)=>(a.date||'')<(b.date||'')?-1:(a.createdAt||0)-(b.createdAt||0)).map(e=>`${e.item||''} : ${(Number(e.amount)||0).toLocaleString('ko-KR')}원`).join('\n');
+    M.push(['', mLabel(ym), f.fee+f.inc, f.exp||'', desc, bal]); });
+  M.push(['', '합계', tin, tout, '잔액', bal]);
+  return {annual:A, monthly:M};
+}
+function loadXlsxLib(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'; s.onload=()=>res(window.XLSX); s.onerror=()=>rej(new Error('xlsx')); document.head.appendChild(s); });
+}
+async function downloadFeeXlsx(y){
+  toast(t('xl_making'));
+  try{
+    const X = await loadXlsxLib(); const T = feeTables(y); const wb = X.utils.book_new();
+    const a = X.utils.aoa_to_sheet(T.annual); a['!merges']=[{s:{r:0,c:0},e:{r:0,c:28}}]; a['!cols']=[{wch:5},{wch:12},{wch:10},{wch:10}].concat(Array.from({length:24},(_,i)=>({wch:i%2?11:8}))).concat([{wch:10}]);
+    const m = X.utils.aoa_to_sheet(T.monthly); m['!cols']=[{wch:2},{wch:8},{wch:13},{wch:12},{wch:60},{wch:13}];
+    [a,m].forEach(ws=>Object.keys(ws).forEach(k=>{ const c=ws[k]; if(k[0]!=='!' && c && c.t==='n') c.z='#,##0'; }));
+    X.utils.book_append_sheet(wb, a, '연간회비'); X.utils.book_append_sheet(wb, m, '월별내역');
+    X.writeFile(wb, `동해모임_회비_${y}.xlsx`);
+  }catch(e){ console.error(e); toast(t('err', 'Excel')); }
 }
 
 function repPeriod(k){
@@ -1136,6 +1180,7 @@ document.addEventListener('click', e=>{
     case 'rep': { const [a,b]=repPeriod(v); S.modal={type:'report', from:a, to:b}; renderModal(); break; }
     case 'repCopy': if(S.modal) copyText(reportText(buildReport(S.modal.from, S.modal.to))); break;
     case 'repKakao': if(S.modal && typeof kakaoShare==='function') kakaoShare(reportText(buildReport(S.modal.from, S.modal.to)).split('\n\n📅')[0].split('\n\n⚠️')[0]); break;
+    case 'feeXlsx': downloadFeeXlsx(v); break;
     case 'repPrint': if(S.modal) printReport(buildReport(S.modal.from, S.modal.to)); break;
     case 'saveSettings': {
       const s=S.settings; const gv=(k)=>S.d['st_'+k] ?? s[k];
