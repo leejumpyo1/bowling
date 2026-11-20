@@ -998,7 +998,7 @@ function parseTokens(text, n){
     if(m){ seq.push({m, nums:[]}); if(!order.includes(m.id)) order.push(m.id); }
     else if(seq.length) seq[seq.length-1].closed = true, seq.push({m:null, nums:[]});
   }
-  const res = {};
+  const res = {}; const orphan = [];
   const ok = a => a.length===n && a.every(v=>v>=0 && v<=300);
   const explicit = new Set(seq.filter(e=>e.m && e.nums.length===n && ok(e.nums)).map(e=>e.m.id));
   seq.forEach(e=>{ if(e.m && e.nums.length===n && ok(e.nums)) res[e.m.id] = e.nums; });
@@ -1009,16 +1009,24 @@ function parseTokens(text, n){
     // the extra triples must belong to the very next people in receipt order whose names OCR dropped
     const k = order.indexOf(e.m.id);
     const next = order.slice(k+1, k+chunks.length);
-    if(next.length !== chunks.length-1 || next.some(id=>explicit.has(id))) return;
-    if(!res[e.m.id]) res[e.m.id] = chunks[0];
-    next.forEach((id,i)=>{ if(!res[id]) res[id] = chunks[i+1]; });
+    if(next.length === chunks.length-1 && !next.some(id=>explicit.has(id))){
+      if(!res[e.m.id]) res[e.m.id] = chunks[0];
+      next.forEach((id,i)=>{ if(!res[id]) res[id] = chunks[i+1]; });
+    } else if(chunks.length===2 && !res[e.m.id]){
+      // one name was dropped by OCR and that person is not in our list: keep the first triple, report the other
+      res[e.m.id] = chunks[0];
+      orphan.push(chunks[1]);
+    }
   });
+  res.__orphan = orphan;
   return res;
 }
 function parsePaste(g, text){
   const n = G(); const best = {}; const unknown = [];
   const tk = parseTokens(text, n);
+  const orphan = tk.__orphan || []; delete tk.__orphan;
   Object.keys(tk).forEach(id=>{ best[id] = {id, sc:tk[id], exact:true}; });
+  orphan.forEach(a=>unknown.push('? ' + a.join(' ')));
   const isScore = v => v>=30 && v<=300;      // lane no., games count, rank (<30) and TOT (>300) are not game scores
   const lines = text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
   lines.forEach(line=>{
@@ -1041,6 +1049,8 @@ function parsePaste(g, text){
     nameLines.slice(-numRows.length).forEach((m,i)=>{ if(!best[m.id] || !best[m.id].exact) best[m.id] = {id:m.id, sc:numRows[i], exact:true}; });
   }
   // drop partial matches that are clearly not scores of all games (keep only if user typed fewer games by hand)
+  // receipt names that are not in the member list
+  (String(text).match(/(^|\n)\s*([가-힣]{2,4})\s+\d{1,2}\s+회원/g)||[]).forEach(x=>{ const nm=x.trim().split(/\s+/)[0]; if(!matchToken(nm) && !unknown.includes(nm)) unknown.push(nm); });
   return {found:Object.values(best), unknown};
 }
 async function closeGame(id){
