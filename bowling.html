@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>볼링 동호회</title>
+<title>동해 B.C</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -171,7 +171,7 @@ table.sc input.in{width:84px;text-align:right;padding:7px 9px}
 /* ---------------- i18n ---------------- */
 const I18N = {
  ko:{
-  app:'볼링 동호회', sub:'참석 조사 · 라인 배정 · 점수 기록',
+  app:'동해 B.C', sub:'참석 조사 · 라인 배정 · 점수 기록',
   tab_game:'게임', tab_members:'회원', tab_history:'기록', tab_kassa:'회비', tab_settings:'설정',
   loading:'불러오는 중…', stale:'서버에 연결할 수 없습니다 — 데이터가 최신이 아닐 수 있습니다.',
   nodb:'API 주소가 없습니다: index.html의 API_URL에 Apps Script 링크를 넣어 주세요.',
@@ -994,7 +994,7 @@ async function drawCard(cd){
   x.fillStyle=glow; x.fillRect(0,0,W,H);
   x.save(); x.globalAlpha=.05; x.strokeStyle='#fff'; x.lineWidth=2; for(let i=-H;i<W;i+=60){ x.beginPath(); x.moveTo(i,H); x.lineTo(i+H,0); x.stroke(); } x.restore();
   // header
-  x.fillStyle='#fff'; x.font='800 44px '+KR; x.textBaseline='alphabetic'; x.fillText('🎳 볼링 동호회', 72, 120);
+  x.fillStyle='#fff'; x.font='800 44px '+KR; x.textBaseline='alphabetic'; x.fillText('🎳 동해 B.C', 72, 120);
   x.fillStyle='rgba(255,255,255,.6)'; x.font='500 34px '+KR; x.textAlign='right'; x.fillText(fmtDate(cd.date,true), W-72, 120); x.textAlign='left';
   // name
   x.fillStyle='#fff'; x.font='800 76px '+KR; x.fillText(cd.name, 72, 270);
