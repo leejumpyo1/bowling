@@ -196,7 +196,7 @@ const I18N = {
   add_member:'회원 추가', name:'이름', base_avg:'초기 평균', add:'추가',
   members_h:'회원', games:'게임', balance_p:'정산 합계', active:'활동',
   edit_member:'회원', del_member:'회원을 삭제할까요?', del_member_t:'과거 기록은 남지만 이름은 표시되지 않습니다.',
-  current_avg:'현재 평균',
+  current_avg:'기준 평균',
   kassa_h:'회비', kassa_balance:'회비 잔액', in_from_games:'게임 납부', out_to_games:'게임 지급',
   add_entry:'내역 추가', note:'내용', amount:'금액', income:'입금', expense:'지출',
   entry_ph:'예: 이월 잔액, 레인 비용', ledger:'내역', game_row:'게임 {0}',
@@ -234,6 +234,7 @@ const I18N = {
   ocr_raw:'인식된 원문', ocr_raw_copy:'원문 복사',
   pending_yes:'「참석」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', pending_no:'「불참」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', btn_yes:'✅ 참석', btn_no:'❌ 불참',
   att_h:'참석 현황', none_ans:'미응답',
+  proj_col:'{0} 예상', proj_hint:'예상 평균 = {0}년 전체 게임 평균, 게임마다 자동 갱신. 화살표는 기준 평균과의 차이입니다.',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
   kakao:'카카오톡 공유', kakao_open:'앱 열기', poll_kakao_line:'아래 「앱 열기」에서 참석/불참을 체크해 주세요 🙌',
   newest:'새 모임', open_games:'진행 중 게임', unknown:'(삭제됨)'
@@ -589,6 +590,13 @@ function moveSel(g,id,k){
   return `<select data-move="${g.id}" data-m="${id}" title="→">${Array.from({length:k},(_,i)=>`<option value="${i}" ${cur===i?'selected':''}>→ ${laneLabel(i)}</option>`).join('')}</select>`;
 }
 
+/* projected next-year average: mean of all individual games played this calendar year (updates after every game) */
+function seasonAvg(id, year){
+  const y = String(year); let sum = 0, n = 0, nights = 0;
+  doneGames().forEach(g=>{ if(isDinner(g) || !String(g.date||'').startsWith(y)) return;
+    const p = played(arrOf(g.scores?.[id])); if(!p.length) return; nights++; p.forEach(v=>{ sum += v; n++; }); });
+  return n ? {avg: sum/n, games: n, nights} : null;
+}
 function vMembers(){
   const ms = [...S.members].sort((a,b)=>(a.active===false)-(b.active===false) || byName(a,b));
   let h = !isAdmin() ? '' : `<div class="card"><h2>${esc(t('add_member'))}</h2>
@@ -600,10 +608,15 @@ function vMembers(){
   h += `<div class="card"><div class="row between"><h2>${esc(t('members_h'))}</h2><span class="count">${ms.length}</span></div>`;
   if(!ms.length) h += `<div class="empty">👥</div>`;
   else {
-    h += `<table class="sc"><thead><tr><th>${esc(t('name'))}</th><th class="num">${esc(t('current_avg'))}</th><th class="num">${esc(t('games'))}</th><th></th></tr></thead><tbody>`;
-    ms.forEach(m=>{ const st=memberStats(m.id);
+    const yr = new Date().getFullYear();
+    h += `<div class="hint" style="margin-top:4px">${esc(t('proj_hint', yr, yr+1))}</div>`;
+    h += `<table class="sc"><thead><tr><th>${esc(t('name'))}</th><th class="num">${esc(t('current_avg'))}</th><th class="num">${esc(t('proj_col', yr+1))}</th><th class="num">${esc(t('games'))}</th><th></th></tr></thead><tbody>`;
+    ms.forEach(m=>{ const st=memberStats(m.id); const pj=seasonAvg(m.id, yr); const ca=curAvg(m.id);
+      const dlt = pj && ca!=null ? Math.round((pj.avg-ca)*10)/10 : null;
       h += `<tr class="${m.active===false?'inactive':''}"><td><b>${esc(m.name)}</b>${num(m.base)!=null&&S.settings.autoAvg?`<div class="hint">${esc(t('base_avg'))}: ${esc(m.base)}</div>`:''}</td>
-        <td class="num"><b>${fa(curAvg(m.id))}</b></td><td class="num">${st.games}</td>
+        <td class="num"><b>${fa(ca)}</b></td>
+        <td class="num">${pj?`<b>${fa(pj.avg)}</b>${dlt!=null&&dlt!==0?`<div style="font-size:11.5px" class="${dlt>0?'pos':'neg'}">${dlt>0?'▲':'▼'} ${Math.abs(dlt)}</div>`:''}`:'<span class="hint">—</span>'}</td>
+        <td class="num">${st.games}</td>
         <td class="num">${isAdmin()?`<button class="btn ghost sm" data-act="editMember" data-id="${m.id}">✎</button>`:''}</td></tr>`;
     });
     h += `</tbody></table>`;
