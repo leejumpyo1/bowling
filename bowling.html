@@ -608,7 +608,9 @@ function moveSel(g,id,k){
 function seasonAvg(id, year){
   const y = String(year); let sum = 0, n = 0, nights = 0;
   doneGames().forEach(g=>{ if(isDinner(g) || !String(g.date||'').startsWith(y)) return;
-    const p = played(arrOf(g.scores?.[id])); if(!p.length) return; nights++; p.forEach(v=>{ sum += v; n++; }); });
+    const p = played(arrOf(g.scores?.[id])); if(!p.length) return; nights++;
+    const w = p.length===1 ? (Number(S.settings.gamesPerNight)||3) : 1; /* only the night average is known → counts as a full night */
+    p.forEach(v=>{ sum += v*w; n += w; }); });
   return n ? {avg: sum/n, games: n, nights} : null;
 }
 function vMembers(){
