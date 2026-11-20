@@ -146,6 +146,7 @@ table.sc input.in{width:84px;text-align:right;padding:7px 9px}
 .modal textarea{width:100%;min-height:200px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2>*{min-width:0}.grid2 .in{width:100%;min-width:0;box-sizing:border-box}
 @media (max-width:560px){.grid2{grid-template-columns:1fr}.big{font-size:28px}table.sc input.in{width:70px}}
 .rule{background:var(--bg);border-radius:12px;padding:12px;font-size:13.5px;margin-top:12px}
 .rule b{font-weight:800}
@@ -234,6 +235,18 @@ const I18N = {
   ocr_raw:'인식된 원문', ocr_raw_copy:'원문 복사',
   pending_yes:'「참석」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', pending_no:'「불참」을 누르셨습니다 — 이름을 선택하면 바로 체크됩니다.', btn_yes:'✅ 참석', btn_no:'❌ 불참',
   att_h:'참석 현황', none_ans:'미응답',
+  tab_fees:'💰 회비', ym:'{0}년 {1}월', mon:'{0}월', day_sfx:'일', cnt:'건',
+  fee_balance:'현재 잔액', fee_settings:'설정', fee_year_in:'{0}년 입금', fee_year_out:'{0}년 지출',
+  fee_dues_h:'월 회비', fee_dues_hint:'월 회비 {0} · 이름 옆 버튼을 누르면 납부/수정', fee_unpaid:'미납', fee_pause:'일시중지', fee_paid:'납부',
+  fee_month_sum:'이번 달 입금 {0}', fee_remind:'미납 알림 복사 ({0}명)', fee_remind_text:'💰 {0} 회비 미납 안내\n{1}\n\n회비 {2} 입금 부탁드립니다 🙏', fee_remind_acc:'계좌: {0}',
+  fee_exp_h:'지출 · 기타 수입', fee_item:'내용', fee_item_ph:'예: 11월 1차 정기전 게임비 + 음료값', fee_add_exp:'지출 추가', fee_add_inc:'수입 추가',
+  fee_edit_h:'{0} · {1} 회비', fee_mark_paid:'납부 저장', fee_mark_unpaid:'미납으로', fee_mark_pause:'일시중지',
+  fee_set_h:'회비 설정', fee_dues_l:'월 회비 (원)', fee_carry_l:'이월 잔액 ({0}년 시작 시점)', fee_account_l:'입금 계좌 (미납 알림에 표시)', fee_need_amt:'금액을 입력하세요',
+  cat_game:'게임비', cat_prize:'상품비', cat_dinner:'회식', cat_event:'대회', cat_avg:'에버 초과', cat_etc:'기타',
+  rep_h:'보고서', rep_title:'회비 보고서', rep_m0:'이번 달', rep_m1:'지난 달', rep_h1:'상반기', rep_h2:'하반기', rep_y0:'올해', rep_y1:'작년',
+  rep_from:'시작', rep_to:'끝', rep_go:'보기', rep_period:'기간', rep_open:'시작 잔액', rep_fee:'회비 입금', rep_inc:'기타 수입 (이자 등)', rep_exp:'지출', rep_close:'종료 잔액',
+  rep_monthly:'월별 내역', rep_in:'입금', rep_out:'지출', rep_bal:'잔액', rep_matrix:'회원별 납부', rep_sum:'합계', rep_unpaid:'미납', rep_all_paid:'미납 없음 👍', rep_details:'지출 세부내역',
+  rep_copy:'텍스트 복사', rep_print:'PDF · 인쇄', rep_popup:'팝업이 차단되었습니다', rep_made:'작성일 {0}',
   proj_col:'{0} 예상', proj_hint:'예상 평균 = {0}년 전체 게임 평균, 게임마다 자동 갱신. 화살표는 기준 평균과의 차이입니다.',
   login:'로그인', logout:'로그아웃', login_h:'관리자 로그인', loginL:'아이디', passL:'비밀번호', login_bad:'아이디 또는 비밀번호가 틀렸습니다', login_ok:'관리자로 로그인했습니다', login_need:'세션이 만료되었습니다 — 다시 로그인하세요',
   kakao:'카카오톡 공유', kakao_open:'앱 열기', poll_kakao_line:'아래 「앱 열기」에서 참석/불참을 체크해 주세요 🙌',
@@ -368,7 +381,7 @@ function render(){
   document.getElementById('authBtn').textContent = TOKEN ? '🔓 '+t('logout') : '🔒 관리자';
   document.getElementById('authBtn').style.display = S.noDb ? 'none' : '';
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on', b.dataset.v===lang));
-  const tabs = ['game','members','history'];
+  const tabs = ['game','members','history', ...(isAdmin()?['fees']:[])];
   if(!tabs.includes(S.tab)) S.tab='game';
   document.getElementById('tabs').innerHTML = tabs.map(k=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${esc(t('tab_'+k))}</button>`).join('');
 
@@ -382,7 +395,7 @@ function render(){
 
   const ready = S.noDb || Object.values(S.loaded).every(Boolean);
   if(!ready && !S.stale) h += `<div class="card empty">${esc(t('loading'))}</div>`;
-  else h += ({game:vGame, members:vMembers, history:vHistory, kassa:vKassa, settings:vSettings})[S.tab]();
+  else h += ({game:vGame, members:vMembers, history:vHistory, fees:vFees, kassa:vKassa, settings:vSettings})[S.tab]();
   document.getElementById('view').innerHTML = h;
   renderModal();
 
@@ -680,6 +693,160 @@ function vKassa(){
   return h;
 }
 
+/* ---------------- 회비 · 지출 (admin) ---------------- */
+const CATS = ['game','prize','dinner','event','avg','etc'];
+const CAT_ICON = {game:'🎳', prize:'🎁', dinner:'🍽️', event:'🏆', avg:'⭐', etc:'📦', inc:'💵'};
+const won = n => Math.round(Number(n)||0).toLocaleString('ko-KR') + '원';
+const ymNow = () => today().slice(0,7);
+const ymOf = d => String(d||'').slice(0,7);
+const ymAdd = (ym, n) => { let [y,m] = ym.split('-').map(Number); m += n; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return y+'-'+String(m).padStart(2,'0'); };
+const ymLabel = ym => { const [y,m] = ym.split('-'); return t('ym', y, Number(m)); };
+const mLabel = ym => t('mon', Number(ym.slice(5)));
+const ymRange = (a, b) => { const out=[]; let x=a; while(x<=b && out.length<240){ out.push(x); x=ymAdd(x,1); } return out; };
+const feeDocs = () => S.ledger.filter(e=>e.type==='fees');
+const feeDoc = y => S.ledger.find(e=>e.id==='fee-'+y);
+const cashEntries = () => S.ledger.filter(e=>e.type==='exp' || e.type==='inc');
+const feeDues = y => Number((feeDoc(y)||{}).dues ?? (feeDocs().slice(-1)[0]||{}).dues ?? 30000) || 30000;
+const feeAccount = () => { const d = feeDocs().filter(x=>x.account).sort((a,b)=>a.year<b.year?1:-1)[0]; return d ? d.account : ''; };
+function feeCell(ym, id){ const d = feeDoc(ym.slice(0,4)); const v = d && d.paid && d.paid[id] && d.paid[id][String(Number(ym.slice(5)))]; return v || null; }
+const isPaid = v => v && typeof v==='object';
+function feeIds(yms){ // active members + anyone with a record in these months
+  const ids = new Set(S.members.filter(m=>m.active!==false).map(m=>m.id));
+  yms.forEach(ym=>{ const d=feeDoc(ym.slice(0,4)); if(d&&d.paid) Object.keys(d.paid).forEach(id=>{ if(feeCell(ym,id)) ids.add(id); }); });
+  return [...ids].filter(id=>member(id)).sort((a,b)=>byName(member(a),member(b)));
+}
+function monthFlow(ym){
+  let fee=0, n=0, inc=0, exp=0; const cat={};
+  const d = feeDoc(ym.slice(0,4)); const mk = String(Number(ym.slice(5)));
+  if(d && d.paid) Object.values(d.paid).forEach(r=>{ const v = r && r[mk]; if(isPaid(v)){ fee += Number(v.a)||0; n++; } });
+  cashEntries().forEach(e=>{ if(ymOf(e.date)!==ym) return; const a=Number(e.amount)||0;
+    if(e.type==='inc') inc += a; else { exp += a; const c = CATS.includes(e.cat)?e.cat:'etc'; cat[c] = (cat[c]||0) + a; } });
+  return {fee, n, inc, exp, cat, net: fee+inc-exp};
+}
+function allYms(){
+  const s = new Set();
+  feeDocs().forEach(d=>Object.values(d.paid||{}).forEach(r=>Object.keys(r||{}).forEach(k=>{ if(isPaid(r[k])) s.add(d.year+'-'+String(k).padStart(2,'0')); })));
+  cashEntries().forEach(e=>{ if(e.date) s.add(ymOf(e.date)); });
+  return [...s].sort();
+}
+const carryTotal = () => feeDocs().reduce((a,d)=>a+(Number(d.carry)||0), 0);
+const balanceBefore = ym => carryTotal() + allYms().filter(x=>x<ym).reduce((a,x)=>a+monthFlow(x).net, 0);
+const balanceNow = () => carryTotal() + allYms().reduce((a,x)=>a+monthFlow(x).net, 0);
+const entryDay = e => String(e.date||'').length>=10 ? Number(e.date.slice(8,10))+t('day_sfx') : '';
+
+function vFees(){
+  if(!isAdmin()) return `<div class="card empty">🔒</div>`;
+  const ym = S.feeYm || (S.feeYm = ymNow()); const y = ym.slice(0,4);
+  const bal = balanceNow();
+  let yin=0, yout=0; allYms().filter(x=>x.startsWith(y)).forEach(x=>{ const f=monthFlow(x); yin+=f.fee+f.inc; yout+=f.exp; });
+  let h = `<div class="card"><div class="row between"><div class="hint">${esc(t('fee_balance'))}</div><button class="btn ghost sm" data-act="feeSet">⚙️ ${esc(t('fee_settings'))}</button></div>
+    <div class="big ${bal<0?'neg':''}">${esc(won(bal))}</div>
+    <div class="stats"><div class="stat"><div class="k">${esc(t('fee_year_in', y))}</div><div class="v pos">+${esc(won(yin))}</div></div>
+    <div class="stat"><div class="k">${esc(t('fee_year_out', y))}</div><div class="v neg">−${esc(won(yout))}</div></div></div></div>`;
+  h += `<div class="card" style="padding:10px 14px"><div class="row between"><button class="btn ghost" data-act="feeYm" data-v="-1">◀</button><h2 style="margin:0">${esc(ymLabel(ym))}</h2><button class="btn ghost" data-act="feeYm" data-v="1">▶</button></div></div>`;
+
+  // 1) dues
+  const ids = feeIds([ym]); const f = monthFlow(ym);
+  const paidN = ids.filter(id=>isPaid(feeCell(ym,id))).length, pauseN = ids.filter(id=>feeCell(ym,id)==='pause').length;
+  const unpaid = ids.filter(id=>!feeCell(ym,id));
+  h += `<div class="card"><div class="row between"><h2>💰 ${esc(t('fee_dues_h'))}</h2><span class="count">${paidN}/${ids.length-pauseN}</span></div>
+    <div class="hint">${esc(t('fee_dues_hint', won(feeDues(y))))}</div>
+    <div class="list" style="margin-top:6px">${ids.map(id=>{ const v=feeCell(ym,id);
+      const st = isPaid(v) ? `<span class="hint" style="font-size:12px">${v.d?esc(fmtDate(v.d)):''}</span><button class="pill on" data-act="feeTap" data-m="${id}"><span class="dot">✓</span>${esc(won(v.a))}</button>`
+        : v==='pause' ? `<button class="pill" data-act="feeTap" data-m="${id}" style="opacity:.6">⏸ ${esc(t('fee_pause'))}</button>`
+        : `<button class="pill" data-act="feeTap" data-m="${id}" style="border-color:var(--bad,#d33);color:var(--bad,#d33)"><span class="dot"></span>${esc(t('fee_unpaid'))}</button>`;
+      return `<div class="it"><span class="grow"><b>${esc(mname(id))}</b></span>${st}</div>`; }).join('')}</div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap"><span class="hint grow">${esc(t('fee_month_sum', won(f.fee)))}</span>
+      ${unpaid.length?`<button class="btn sm" data-act="feeRemind">📋 ${esc(t('fee_remind', unpaid.length))}</button>`:''}</div></div>`;
+
+  // 2) cash entries
+  const es = cashEntries().filter(e=>ymOf(e.date)===ym).sort((a,b)=>(a.date||'')<(b.date||'')?-1:(a.date||'')>(b.date||'')?1:(a.createdAt||0)-(b.createdAt||0));
+  h += `<div class="card"><div class="row between"><h2>🧾 ${esc(t('fee_exp_h'))}</h2><span class="hint">−${esc(won(f.exp))}${f.inc?` · +${esc(won(f.inc))}`:''}</span></div>
+    <div class="list" style="margin-top:6px">${es.length?es.map(e=>`<div class="it"><span class="hint" style="width:34px;font-size:12px">${esc(entryDay(e))}</span><span>${CAT_ICON[e.type==='inc'?'inc':(e.cat||'etc')]||'📦'}</span><span class="grow" style="font-size:14px">${esc(e.item||'—')}</span><b class="${e.type==='inc'?'pos':'neg'}" style="white-space:nowrap">${e.type==='inc'?'+':'−'}${esc(won(e.amount))}</b><button class="btn ghost sm" data-act="delCash" data-id="${e.id}">✕</button></div>`).join(''):`<div class="empty" style="padding:10px">—</div>`}</div>
+    <div class="grid2" style="margin-top:12px">
+      <label class="f">${esc(t('date'))}<input class="in" type="date" id="fe_date" data-d="fe_date" value="${esc(dv('fe_date', ym===ymNow()?today():ym+'-01'))}"></label>
+      <label class="f">${esc(t('amount'))}<input class="in" type="number" id="fe_amt" data-d="fe_amt" value="${esc(dv('fe_amt'))}" inputmode="numeric" placeholder="157500"></label>
+    </div>
+    <label class="f" style="margin-top:10px">${esc(t('fee_item'))}<input class="in" id="fe_item" data-d="fe_item" value="${esc(dv('fe_item'))}" placeholder="${esc(t('fee_item_ph'))}"></label>
+    <div class="pills" style="margin-top:10px">${CATS.map(c=>`<button class="pill ${dv('fe_cat','game')===c?'on':''}" data-act="feCat" data-v="${c}">${CAT_ICON[c]} ${esc(t('cat_'+c))}</button>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="btn pri" data-act="addCash" data-v="exp">− ${esc(t('fee_add_exp'))}</button><button class="btn" data-act="addCash" data-v="inc">＋ ${esc(t('fee_add_inc'))}</button></div></div>`;
+
+  // 3) report
+  const r = S.d.rep_from || ymAdd(ymNow(), -5), r2 = S.d.rep_to || ymNow();
+  const opts = sel => { const all = allYms(); const lo = all[0] || ymNow(); return ymRange(lo < ymAdd(ymNow(),-24) ? lo : ymAdd(ymNow(),-24), ymAdd(ymNow(),1)).reverse().map(x=>`<option value="${x}" ${x===sel?'selected':''}>${esc(ymLabel(x))}</option>`).join(''); };
+  h += `<div class="card"><h2>📊 ${esc(t('rep_h'))}</h2>
+    <div class="pills">${['m0','m1','h1','h2','y0','y1'].map(k=>`<button class="pill" data-act="rep" data-v="${k}">${esc(t('rep_'+k))}</button>`).join('')}</div>
+    <div class="row" style="margin-top:12px;align-items:flex-end;flex-wrap:wrap">
+      <label class="f grow">${esc(t('rep_from'))}<select class="in" data-d="rep_from">${opts(r)}</select></label>
+      <label class="f grow">${esc(t('rep_to'))}<select class="in" data-d="rep_to">${opts(r2)}</select></label>
+      <button class="btn pri" data-act="rep" data-v="custom">${esc(t('rep_go'))}</button></div></div>`;
+  return h;
+}
+
+function repPeriod(k){
+  const now = ymNow(), y = Number(now.slice(0,4));
+  if(k==='m0') return [now, now];
+  if(k==='m1'){ const p=ymAdd(now,-1); return [p,p]; }
+  if(k==='h1') return [y+'-01', y+'-06'];
+  if(k==='h2') return [y+'-07', y+'-12'];
+  if(k==='y0') return [y+'-01', y+'-12'];
+  if(k==='y1') return [(y-1)+'-01', (y-1)+'-12'];
+  let a = S.d.rep_from || ymAdd(now,-5), b = S.d.rep_to || now; if(a>b) [a,b]=[b,a]; return [a,b];
+}
+function buildReport(from, to){
+  const yms = ymRange(from, to); const now = ymNow();
+  const open = balanceBefore(from);
+  const months = yms.map(ym=>({ym, ...monthFlow(ym)}));
+  let run = open; months.forEach(m=>{ run += m.net; m.bal = run; });
+  const tot = months.reduce((a,m)=>{ a.fee+=m.fee; a.n+=m.n; a.inc+=m.inc; a.exp+=m.exp; CATS.forEach(c=>a.cat[c]=(a.cat[c]||0)+(m.cat[c]||0)); return a; }, {fee:0,n:0,inc:0,exp:0,cat:{}});
+  const ids = feeIds(yms);
+  const due = yms.filter(ym=>ym<=now);
+  const unpaid = ids.map(id=>({id, ms: due.filter(ym=>!feeCell(ym,id) && (member(id).active!==false))})).filter(x=>x.ms.length);
+  const perMember = ids.map(id=>({id, sum: yms.reduce((a,ym)=>{ const v=feeCell(ym,id); return a + (isPaid(v)?Number(v.a)||0:0); },0)}));
+  const entries = cashEntries().filter(e=>{ const m=ymOf(e.date); return m>=from && m<=to; }).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+  return {from, to, yms, open, close: open + tot.fee + tot.inc - tot.exp, months, tot, ids, unpaid, perMember, entries};
+}
+const repTitle = R => R.from===R.to ? ymLabel(R.from) : `${ymLabel(R.from)} ~ ${ymLabel(R.to)}`;
+function reportHtml(R){
+  const catRows = CATS.filter(c=>R.tot.cat[c]).map(c=>`<tr><td style="padding-left:18px">${CAT_ICON[c]} ${esc(t('cat_'+c))}</td><td class="num">${esc(won(R.tot.cat[c]))}</td></tr>`).join('');
+  let h = `<div class="hint">${esc(t('rep_period'))}</div><div style="font-weight:800;font-size:16px">${esc(repTitle(R))}</div>
+    <table class="sc"><tbody>
+      <tr><td>${esc(t('rep_open'))}</td><td class="num">${esc(won(R.open))}</td></tr>
+      <tr><td>＋ ${esc(t('rep_fee'))} <span class="hint">(${R.tot.n}${esc(t('cnt'))})</span></td><td class="num pos">${esc(won(R.tot.fee))}</td></tr>
+      ${R.tot.inc?`<tr><td>＋ ${esc(t('rep_inc'))}</td><td class="num pos">${esc(won(R.tot.inc))}</td></tr>`:''}
+      <tr><td>− ${esc(t('rep_exp'))}</td><td class="num neg">${esc(won(R.tot.exp))}</td></tr>${catRows}
+      <tr><td><b>= ${esc(t('rep_close'))}</b></td><td class="num"><b>${esc(won(R.close))}</b></td></tr>
+    </tbody></table>`;
+  if(R.yms.length>1){
+    h += `<h3 style="margin:16px 0 0">📅 ${esc(t('rep_monthly'))}</h3><table class="sc"><thead><tr><th></th><th class="num">${esc(t('rep_in'))}</th><th class="num">${esc(t('rep_out'))}</th><th class="num">${esc(t('rep_bal'))}</th></tr></thead><tbody>
+      ${R.months.map(m=>`<tr><td>${esc(mLabel(m.ym))}</td><td class="num pos">${m.fee+m.inc?esc((m.fee+m.inc).toLocaleString('ko-KR')):'—'}</td><td class="num neg">${m.exp?esc(m.exp.toLocaleString('ko-KR')):'—'}</td><td class="num">${esc(m.bal.toLocaleString('ko-KR'))}</td></tr>`).join('')}</tbody></table>`;
+    const cols = R.yms.slice(0,12);
+    h += `<h3 style="margin:16px 0 0">💰 ${esc(t('rep_matrix'))}</h3><div style="overflow-x:auto"><table class="sc" style="font-size:12.5px"><thead><tr><th></th>${cols.map(ym=>`<th class="num" style="padding:6px 3px">${Number(ym.slice(5))}</th>`).join('')}<th class="num">${esc(t('rep_sum'))}</th></tr></thead><tbody>
+      ${R.perMember.map(p=>`<tr><td>${esc(mname(p.id))}</td>${cols.map(ym=>{ const v=feeCell(ym,p.id); return `<td class="num" style="padding:6px 3px">${isPaid(v)?'<span class="pos">✓</span>':v==='pause'?'<span class="hint">⏸</span>':ym<=ymNow()?'<span class="neg">✗</span>':'<span class="hint">·</span>'}</td>`; }).join('')}<td class="num">${esc((p.sum/1000).toLocaleString('ko-KR'))}k</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  h += `<h3 style="margin:16px 0 4px">⚠️ ${esc(t('rep_unpaid'))}</h3>${R.unpaid.length?`<div class="list">${R.unpaid.map(u=>`<div class="it"><span class="grow"><b>${esc(mname(u.id))}</b></span><span class="neg" style="font-size:13px">${esc(u.ms.map(mLabel).join(', '))}</span></div>`).join('')}</div>`:`<div class="hint">${esc(t('rep_all_paid'))}</div>`}`;
+  h += `<h3 style="margin:16px 0 4px">🧾 ${esc(t('rep_details'))}</h3>${R.entries.length?`<div class="list">${R.entries.map(e=>`<div class="it" style="padding:7px 0"><span class="hint" style="width:44px;font-size:12px">${esc(String(e.date||'').length>=10?fmtDate(e.date):mLabel(ymOf(e.date)))}</span><span class="grow" style="font-size:13px">${CAT_ICON[e.type==='inc'?'inc':(e.cat||'etc')]} ${esc(e.item||'')}</span><b class="${e.type==='inc'?'pos':'neg'}" style="font-size:13px;white-space:nowrap">${e.type==='inc'?'+':'−'}${esc((Number(e.amount)||0).toLocaleString('ko-KR'))}</b></div>`).join('')}</div>`:'<div class="hint">—</div>'}`;
+  return h;
+}
+function reportText(R){
+  let s = `📊 ${t('app')} ${t('rep_title')}\n${t('rep_period')}: ${repTitle(R)}\n\n`;
+  s += `${t('rep_open')}: ${won(R.open)}\n＋ ${t('rep_fee')}: ${won(R.tot.fee)} (${R.tot.n}${t('cnt')})\n`;
+  if(R.tot.inc) s += `＋ ${t('rep_inc')}: ${won(R.tot.inc)}\n`;
+  s += `− ${t('rep_exp')}: ${won(R.tot.exp)}\n`;
+  CATS.filter(c=>R.tot.cat[c]).forEach(c=>{ s += `   ${CAT_ICON[c]} ${t('cat_'+c)} ${won(R.tot.cat[c])}\n`; });
+  s += `= ${t('rep_close')}: ${won(R.close)}\n`;
+  if(R.yms.length>1){ s += `\n📅 ${t('rep_monthly')}\n`; R.months.forEach(m=>{ s += `${mLabel(m.ym)}: +${(m.fee+m.inc).toLocaleString('ko-KR')} / −${m.exp.toLocaleString('ko-KR')} → ${m.bal.toLocaleString('ko-KR')}\n`; }); }
+  s += `\n⚠️ ${t('rep_unpaid')}: ` + (R.unpaid.length ? R.unpaid.map(u=>`${mname(u.id)}(${u.ms.map(mLabel).join(',')})`).join(', ') : t('rep_all_paid')) + '\n';
+  if(R.yms.length<=3 && R.entries.length){ s += `\n🧾 ${t('rep_details')}\n`; R.entries.forEach(e=>{ s += `${e.type==='inc'?'+':'−'}${(Number(e.amount)||0).toLocaleString('ko-KR')} ${e.item||''}\n`; }); }
+  return s.trim();
+}
+function printReport(R){
+  const css = document.querySelector('style').textContent;
+  const w = window.open('', '_blank'); if(!w){ toast(t('rep_popup')); return; }
+  w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(t('rep_title'))} ${esc(repTitle(R))}</title><style>${css} body{background:#fff;padding:20px;max-width:720px;margin:0 auto} @media print{body{padding:0}}</style></head><body><h2 style="margin:0 0 10px">🎳 ${esc(t('app'))} — ${esc(t('rep_title'))}</h2>${reportHtml(R)}<div class="hint" style="margin-top:20px">${esc(t('rep_made', today()))}</div><script>setTimeout(()=>print(),400)<\/script></body></html>`);
+  w.document.close();
+}
+
 function vSettings(){
   const s = S.settings; const v = (k)=> esc(dv('st_'+k, s[k]));
   const auto = S.d.st_autoAvg ?? s.autoAvg;
@@ -738,6 +905,17 @@ function renderModal(){
     <label class="f">${esc(t('time'))}${timeSelect('eg_time','eg_time', dv('eg_time', g.time||DEFAULT_TIME))}</label></div>
     ${isDinner(g)?`<label class="f" style="margin-top:10px">${esc(t('place_opt'))}<input class="in" id="eg_place" data-d="eg_place" value="${esc(dv('eg_place', g.place||''))}"></label>`:''}
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="saveGame" data-id="${M.id}">${esc(t('save'))}</button></div>`; }
+  else if(M.type==='fee'){ const v=feeCell(M.ym, M.m); const y=M.ym.slice(0,4); body = `<h3>${esc(t('fee_edit_h', mname(M.m), ymLabel(M.ym)))}</h3>
+    <div class="grid2"><label class="f">${esc(t('amount'))}<input class="in" type="number" id="fm_amt" data-d="fm_amt" inputmode="numeric" value="${esc(dv('fm_amt', isPaid(v)?v.a:feeDues(y)))}"></label>
+    <label class="f">${esc(t('date'))}<input class="in" type="date" id="fm_date" data-d="fm_date" value="${esc(dv('fm_date', isPaid(v)&&v.d?v.d:today()))}"></label></div>
+    <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn ghost" data-act="feeSave" data-v="none">${esc(t('fee_mark_unpaid'))}</button><button class="btn ghost" data-act="feeSave" data-v="pause">⏸ ${esc(t('fee_mark_pause'))}</button><span class="grow"></span><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="feeSave" data-v="paid">✓ ${esc(t('fee_mark_paid'))}</button></div>`; }
+  else if(M.type==='feeSet'){ const y=(S.feeYm||ymNow()).slice(0,4); const d=feeDoc(y)||{}; body = `<h3>⚙️ ${esc(t('fee_set_h'))} · ${y}</h3>
+    <label class="f">${esc(t('fee_dues_l'))}<input class="in" type="number" id="fs_dues" data-d="fs_dues" inputmode="numeric" value="${esc(dv('fs_dues', feeDues(y)))}"></label>
+    <label class="f" style="margin-top:10px">${esc(t('fee_carry_l', y))}<input class="in" type="number" id="fs_carry" data-d="fs_carry" inputmode="numeric" value="${esc(dv('fs_carry', d.carry??0))}"></label>
+    <label class="f" style="margin-top:10px">${esc(t('fee_account_l'))}<input class="in" id="fs_acc" data-d="fs_acc" value="${esc(dv('fs_acc', d.account??feeAccount()))}"></label>
+    <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="feeSetSave">${esc(t('save'))}</button></div>`; }
+  else if(M.type==='report'){ const R=buildReport(M.from, M.to); body = `<h3>📊 ${esc(t('rep_title'))}</h3>${reportHtml(R)}
+    <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn" data-act="repCopy">📋 ${esc(t('rep_copy'))}</button>${typeof kakaoReady!=='undefined'&&kakaoReady?`<button class="btn kakao" data-act="repKakao">💬 ${esc(t('kakao'))}</button>`:''}<button class="btn" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button><span class="grow"></span><button class="btn pri" data-act="mclose">${esc(t('close'))}</button></div>`; }
   root.innerHTML = `<div class="modal-bg" data-act="bgclose"><div class="modal">${body}</div></div>`;
 }
 let toastTimer;
@@ -746,7 +924,7 @@ function copyText(txt){
   try{ navigator.clipboard.writeText(txt).then(()=>toast(t('copied'))).catch(()=>{ S.modal={type:'copy',text:txt}; renderModal(); }); }
   catch(e){ S.modal={type:'copy',text:txt}; renderModal(); }
 }
-function closeModal(){ S.modal=null; ['em_name','em_avg','em_active','eg_date','eg_time','eg_place'].forEach(k=>delete S.d[k]); renderModal(); }
+function closeModal(){ S.modal=null; ['em_name','em_avg','em_active','eg_date','eg_time','eg_place','fm_amt','fm_date','fs_dues','fs_carry','fs_acc'].forEach(k=>delete S.d[k]); renderModal(); }
 
 
 /* ---------------- result card (KuCoin-style share image) ---------------- */
@@ -936,6 +1114,29 @@ document.addEventListener('click', e=>{
       const body={date:dv('le_date',today()), note:(dv('le_note')||'').trim(), amount:Math.abs(a)*Number(v), createdAt:Date.now()};
       write('ledger/new', ()=>S.db.collection('ledger').add(body)); delete S.d.le_amt; delete S.d.le_note; render(); break; }
     case 'delEntry': S.modal={type:'confirm', title:t('delete')+'?', text:'', okLabel:t('delete'), onOk:()=>write('ledger/'+id, ()=>S.db.collection('ledger').doc(id).delete())}; renderModal(); break;
+    case 'feeYm': S.feeYm = ymAdd(S.feeYm||ymNow(), Number(v)); delete S.d.fe_date; render(); break;
+    case 'feeTap': { const ym=S.feeYm||ymNow(), mid=el.dataset.m, y=ym.slice(0,4), mk=String(Number(ym.slice(5)));
+      if(!feeCell(ym, mid)) saveFee(y, mid, mk, {a:feeDues(y), d:today()});
+      else { S.modal={type:'fee', ym, m:mid}; renderModal(); } break; }
+    case 'feeSave': { const M=S.modal; if(!M) break; const y=M.ym.slice(0,4), mk=String(Number(M.ym.slice(5)));
+      let val=null; if(v==='pause') val='pause'; else if(v==='paid'){ const a=num(dv('fm_amt', '')); const old=feeCell(M.ym,M.m);
+        const amt = a ?? (isPaid(old)?old.a:feeDues(y)); if(!amt){ toast(t('fee_need_amt')); break; } val={a:amt, d:dv('fm_date', isPaid(old)&&old.d?old.d:today())}; }
+      closeModal(); saveFee(y, M.m, mk, val); break; }
+    case 'feeSet': S.modal={type:'feeSet'}; renderModal(); break;
+    case 'feeSetSave': { const y=(S.feeYm||ymNow()).slice(0,4); const upd={dues:num(dv('fs_dues', feeDues(y)))||30000, carry:num(dv('fs_carry', (feeDoc(y)||{}).carry))||0, account:String(dv('fs_acc', (feeDoc(y)||{}).account??feeAccount())).trim()};
+      closeModal(); feeWrite(y, upd); break; }
+    case 'feeRemind': { const ym=S.feeYm||ymNow(); const un=feeIds([ym]).filter(id=>!feeCell(ym,id)); const acc=feeAccount();
+      copyText(t('fee_remind_text', ymLabel(ym), un.map(mname).join(', '), won(feeDues(ym.slice(0,4)))) + (acc?'\n'+t('fee_remind_acc', acc):'')); break; }
+    case 'feCat': S.d.fe_cat=v; render(); break;
+    case 'addCash': { const amt=num(dv('fe_amt')); if(!amt){ toast(t('fee_need_amt')); document.getElementById('fe_amt')?.focus(); break; }
+      const ym=S.feeYm||ymNow(); const date=dv('fe_date', ym===ymNow()?today():ym+'-01');
+      const body={type:v==='inc'?'inc':'exp', date, amount:Math.abs(amt), item:(dv('fe_item')||'').trim(), createdAt:Date.now()}; if(v!=='inc') body.cat=dv('fe_cat','game');
+      write('ledger/new', ()=>S.db.collection('ledger').add(body)); delete S.d.fe_amt; delete S.d.fe_item; render(); break; }
+    case 'delCash': { const e=S.ledger.find(x=>x.id===id); S.modal={type:'confirm', title:t('delete')+'?', text:e?`${e.item||''} ${won(e.amount)}`:'', okLabel:t('delete'), onOk:()=>write('ledger/'+id, ()=>S.db.collection('ledger').doc(id).delete())}; renderModal(); break; }
+    case 'rep': { const [a,b]=repPeriod(v); S.modal={type:'report', from:a, to:b}; renderModal(); break; }
+    case 'repCopy': if(S.modal) copyText(reportText(buildReport(S.modal.from, S.modal.to))); break;
+    case 'repKakao': if(S.modal && typeof kakaoShare==='function') kakaoShare(reportText(buildReport(S.modal.from, S.modal.to)).split('\n\n📅')[0].split('\n\n⚠️')[0]); break;
+    case 'repPrint': if(S.modal) printReport(buildReport(S.modal.from, S.modal.to)); break;
     case 'saveSettings': {
       const s=S.settings; const gv=(k)=>S.d['st_'+k] ?? s[k];
       const body={threshold:num(gv('threshold'))??20, amount:num(gv('amount'))??1000, autoAvg:!!gv('autoAvg'), lastN:Math.max(1,Math.round(num(gv('lastN'))??10)), teamCount:Math.max(2,Math.min(8,Math.round(num(gv('teamCount'))??3))), time:gv('time')||'', gamesPerNight:Math.max(1,Math.min(10,Math.round(num(gv('gamesPerNight'))??3))), mode:gv('mode')==='each'?'each':'evening', perLane:Math.max(2,Math.min(10,Math.round(num(gv('perLane'))??5)))};
@@ -1078,6 +1279,11 @@ async function closeGame(id){
   toast(t('closed_ok')); S.gameSel=null; S.tab='history'; S.histOpen=id; render();
 }
 
+function feeWrite(y, upd){
+  const id='fee-'+y; const ex=feeDoc(y);
+  return write('ledger/'+id, ()=> ex ? S.db.collection('ledger').doc(id).update(upd) : S.db.collection('ledger').doc(id).set({type:'fees', year:y, dues:feeDues(y), carry:0, account:feeAccount(), paid:{}, ...upd}));
+}
+function saveFee(y, mid, mk, val){ const ex=feeDoc(y); return feeWrite(y, ex ? {paid:{[mid]:{[mk]:val}}} : {paid:{[mid]:{[mk]:val}}}); }
 /* ---------------- API (Google Apps Script) ---------------- */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz9UKqIKC-ACnVDRVkwrO4i4TN7SBToYLguhdQZc1KaEHSc_hMPzjU31qff8WtUspBX/exec';
 let TOKEN = null; try{ TOKEN = localStorage.getItem('bw_token'); }catch(e){}
