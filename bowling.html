@@ -1148,7 +1148,7 @@ document.addEventListener('click', e=>{
       write('games/'+gg.id, ()=>gdoc(gg.id).update({attending:att})).then(()=>saveScores(S.games.find(x=>x.id===id)||gg, r.found.map(f=>f.id)));
       toast(t('paste_ok', r.found.length) + (r.unknown.length? ' · '+t('paste_unknown', r.unknown.join(', ')) : ''));
       break; }
-    case 'kPoll': kakaoShare(pollText(g).replace(/\n[^\n]*$/, '\n' + t('poll_kakao_line'))); break;
+    case 'kPoll': kakaoShareLogo(pollText(g).split('\n')[0], t('poll_kakao_line')); break;
     case 'kTeams': kakaoShare(teamsText(g)); break;
     case 'kRes': kakaoShare(kakaoResultsText(g)); break;
     case 'copyResults': copyText(resultsText(g)); break;
@@ -1431,6 +1431,13 @@ function kakaoInit(){
   document.head.appendChild(sc);
 }
 function kakaoBtn(act, id){ return kakaoReady ? `<button class="btn sm kakao" data-act="${act}" data-id="${id}">💬 ${esc(t('kakao'))}</button>` : ''; }
+function kakaoShareLogo(title, desc){                                 // приглашение: карточка с логотипом клуба
+  const url = location.href.split(/[?#]/)[0];
+  const link = {mobileWebUrl:url, webUrl:url};
+  const img = new URL('logo_kakao.png', url).href;
+  try{ window.Kakao.Share.sendDefault({objectType:'feed', content:{title, description:desc, imageUrl:img, imageWidth:800, imageHeight:800, link}, buttons:[{title:t('kakao_open'), link}]}); }
+  catch(e){ console.error(e); toast(t('err', e.message||'Kakao')); }
+}
 function kakaoShare(text, btns){
   const url = location.href.split(/[?#]/)[0];
   const tail = '';                                                    // без ссылок в тексте — только кнопка «앱 열기»
