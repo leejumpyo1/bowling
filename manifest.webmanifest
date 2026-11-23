@@ -1,0 +1,17 @@
+{
+  "name": "동해 B.C",
+  "short_name": "동해 B.C",
+  "description": "동해 볼링 동호회 — 참석, 라인 배정, 기록, 회비",
+  "lang": "ko",
+  "start_url": "./bowling.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1d2a44",
+  "theme_color": "#1d2a44",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
