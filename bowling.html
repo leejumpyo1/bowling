@@ -508,7 +508,7 @@ function vGameInner(){
   h += `<div class="card"><div class="step"><div class="n">1</div><h3 class="grow">${esc(t('s1'))}</h3><span class="count">${esc(t('going', att.length, nNo, actM.length-att.length-nNo))}</span></div>`;
   if(!actM.length) h += `<div class="hint">${esc(t('no_members'))}</div>`;
   else {
-    h += `<div class="row"><button class="btn sm" data-act="copyPoll" data-id="${g.id}">📋 ${esc(t('copy_poll'))}</button>${kakaoBtn('kPoll', g.id)}
+    h += `<div class="row">${typeof kakaoBtn==='function'?kakaoBtn('kPoll', g.id):''}
       <span class="grow"></span>${isAdmin()?`<button class="btn sm ghost" data-act="attAll" data-id="${g.id}">${esc(t('all'))}</button><button class="btn sm ghost" data-act="attNone" data-id="${g.id}">${esc(t('none'))}</button>`:''}</div>`;
     h += `<div class="pills">${actM.map(m=>{ const on=!!g.attending?.[m.id], off=g.attending?.[m.id]===false; return `<button class="pill ${on?'on':''} ${off?'off':''}" data-act="att" data-id="${g.id}" data-m="${m.id}" ${ro()}><span class="dot">${on?'✓':off?'✕':''}</span>${esc(m.name)} <span class="av">${fa(avgIn(g,m.id))}</span></button>`; }).join('')}</div>`;
   }
@@ -521,7 +521,7 @@ function vGameInner(){
   }
   // step 2
   const kDef = num(dv('tc_'+g.id)) ?? (g.teamCount || autoK(att.length));
-  h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3>${!isAdmin()&&hasTeams?`<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
+  h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3>${hasTeams?`<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
   if(!isAdmin()){
     h += hasTeams ? teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
   }
@@ -529,7 +529,7 @@ function vGameInner(){
   else {
     h += `<div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:8px">${esc(t('teams_n'))}<input class="in" type="number" min="1" max="8" style="width:70px" id="tc_${g.id}" data-d="tc_${g.id}" value="${esc(kDef)}"></label>
       <button class="btn pri sm" data-act="gen" data-id="${g.id}" ${ro()}>⚖️ ${esc(t('gen'))}</button>
-      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button><span class="grow"></span><button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
+      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button>`:''}</div>`;
     if(hasTeams) h += teamsHtml(g, true);
     else h += `<div class="hint" style="margin-top:10px">${esc(t('lanes_hint'))}</div>`;
   }
