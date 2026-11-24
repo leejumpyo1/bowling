@@ -563,8 +563,8 @@ function vGameInner(){
     h += `</tbody></table></div><div id="sum_${g.id}">${summaryHtml(att.map(id=>({name:mname(id), arr:draftArr(g,id), avg:avgIn(g,id)})))}</div>`;
     const miss = att.filter(id=>!played(draftArr(g,id)).length);
     const kas = -att.reduce((s,id)=>s+deltaArr(draftArr(g,id), avgIn(g,id)),0);
-    h += `<div class="row between" style="margin-top:14px"><div class="hint">${miss.length?esc(t('missing_scores', miss.map(mname).join(', '))):''}</div>
-      ${isAdmin()?`<button class="btn pri" data-act="askClose" data-id="${g.id}" ${miss.length===att.length?'disabled':''}>✓ ${esc(t('close_game'))}</button>`:''}</div></div>`;
+    h += `${miss.length?`<div class="hint" style="margin-top:14px">${esc(t('missing_scores', miss.map(mname).join(', ')))}</div>`:''}
+      ${isAdmin()?`<button class="btn pri" style="width:100%;justify-content:center;margin-top:12px;padding:14px;font-size:16px" data-act="askClose" data-id="${g.id}" ${miss.length===att.length?'disabled':''}>✓ ${esc(t('close_game'))}</button>`:''}</div>`;
   }
   return h;
 }
