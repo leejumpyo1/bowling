@@ -606,7 +606,7 @@ function teamsHtml(g, editable){
     const scs = ids.flatMap(id=>played(g.status==='done'?arrOf(g.scores?.[id]):draftArr(g,id))); const st = scs.reduce((a,b)=>a+b,0);
     h += `<div class="team t${i%8}"><div class="th"><b>${esc(t('team', laneLabel(i)))}</b><span class="meta">${esc(t('sum_avg', fa(sa), ma))}</span></div>
       ${scs.length?`<div class="meta" style="margin:-4px 0 6px">🏁 ${esc(t('team_score', st))}</div>`:''}<ul>`;
-    ids.sort((a,b)=>(avgIn(g,b)||0)-(avgIn(g,a)||0)).forEach(id=>{
+    ids.sort((a,b)=>{ const lo=v=>v==null?1e9:v; return lo(avgIn(g,a))-lo(avgIn(g,b)); }).forEach(id=>{
       h += `<li><span class="nm">${esc(mname(id))}</span><span class="meta">${fa(avgIn(g,id))}</span>${editable&&S.canWrite!==false?moveSel(g,id,k):''}</li>`;
     });
     h += `</ul></div>`;
