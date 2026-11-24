@@ -944,11 +944,11 @@ function renderModal(){
   else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>${esc(M.h || ('📸 '+t('card_h')))}</h3>
     <img src="${M.img}" alt="" style="width:100%;border-radius:12px;display:block">
     <div class="row" style="margin-top:12px;flex-wrap:wrap">
-      ${M.kind!=='lanes' && typeof kakaoShareImage==='function' && typeof kakaoReady!=='undefined' && kakaoReady ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
-      ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow ${M.kind==='lanes'?'pri':''}" data-act="cardShare" style="justify-content:center">📤 ${esc(M.kind==='lanes'?t('photo_share'):t('card_share'))}</button>`:''}
+      ${false ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
+      ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow pri" data-act="cardShare" style="justify-content:center">📤 ${esc(t('photo_share'))}</button>`:''}
       <a class="btn grow" href="${M.img}" download="${esc(M.file.name)}" style="justify-content:center;text-decoration:none;color:inherit">⬇️ ${esc(t('card_save'))}</a>
     </div>
-    ${M.kind==='lanes'?((navigator.canShare && M.file && navigator.canShare({files:[M.file]}))?'':`<div class="hint" style="margin-top:8px">${esc(t('photo_hint'))}</div>`):`<div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>`}
+    ${(navigator.canShare && M.file && navigator.canShare({files:[M.file]}))?'':`<div class="hint" style="margin-top:8px">${esc(t('photo_hint'))}</div>`}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='login') body = `<h3>🔒 ${esc(t('login_h'))}</h3>
     <form id="loginForm"><label class="f">${esc(t('loginL'))}<input class="in" id="lg_user" data-d="lg_user" autocomplete="username" value="${esc(dv('lg_user'))}"></label>
