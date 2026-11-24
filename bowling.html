@@ -199,7 +199,7 @@ const I18N = {
   s1:'참석자', s2:'라인 배정', s3:'점수', s4:'결과',
   going:'참석 {0} · 불참 {1} · 미응답 {2}', copy_poll:'참석 조사 문구', all:'전체', none:'해제',
   no_members:'먼저 「회원」 탭에서 회원을 추가하세요.',
-  lanes_img_btn:'표로 공유', lanes_kakao_desc:'라인 배정표 · 사진을 누르면 앱에서 크게 보여요 👀', kk_bowling:'볼링 정기전', kk_dinner:'회식', kk_check:'「앱 열기」에서 참석/불참 체크 🙌', lanes_img_title:'라인 배정', lanes_img_sub:'참석 {0}명 · {1}개 라인', ppl_short:'명',
+  lanes_img_btn:'사진으로 공유', photo_share:'사진으로 공유', photo_hint:'이 브라우저에서는 바로 공유가 안 돼요. 「저장」 후 카톡에서 사진으로 보내 주세요 (또는 크롬/사파리에서 열기).', lanes_kakao_desc:'라인 배정표 · 사진을 누르면 앱에서 크게 보여요 👀', kk_bowling:'볼링 정기전', kk_dinner:'회식', kk_check:'「앱 열기」에서 참석/불참 체크 🙌', lanes_img_title:'라인 배정', lanes_img_sub:'참석 {0}명 · {1}개 라인', ppl_short:'명',
   teams_n:'라인 수', gen:'라인 배정', reshuffle:'다시 섞기', copy_teams:'라인 명단 복사',
   team:'{0} 라인', avg_short:'평균', no_team:'미배정', sum_avg:'평균합 {0} · 평균 {1}', team_score:'합계 {0}',
   need_att:'참석자를 2명 이상 선택하세요.',
@@ -944,11 +944,11 @@ function renderModal(){
   else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>${esc(M.h || ('📸 '+t('card_h')))}</h3>
     <img src="${M.img}" alt="" style="width:100%;border-radius:12px;display:block">
     <div class="row" style="margin-top:12px;flex-wrap:wrap">
-      ${typeof kakaoShareImage==='function' && typeof kakaoReady!=='undefined' && kakaoReady ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
-      ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow" data-act="cardShare" style="justify-content:center">📤 ${esc(t('card_share'))}</button>`:''}
+      ${M.kind!=='lanes' && typeof kakaoShareImage==='function' && typeof kakaoReady!=='undefined' && kakaoReady ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
+      ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow ${M.kind==='lanes'?'pri':''}" data-act="cardShare" style="justify-content:center">📤 ${esc(M.kind==='lanes'?t('photo_share'):t('card_share'))}</button>`:''}
       <a class="btn grow" href="${M.img}" download="${esc(M.file.name)}" style="justify-content:center;text-decoration:none;color:inherit">⬇️ ${esc(t('card_save'))}</a>
     </div>
-    ${M.kind==='lanes'?'':`<div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>`}
+    ${M.kind==='lanes'?((navigator.canShare && M.file && navigator.canShare({files:[M.file]}))?'':`<div class="hint" style="margin-top:8px">${esc(t('photo_hint'))}</div>`):`<div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>`}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='login') body = `<h3>🔒 ${esc(t('login_h'))}</h3>
     <form id="loginForm"><label class="f">${esc(t('loginL'))}<input class="in" id="lg_user" data-d="lg_user" autocomplete="username" value="${esc(dv('lg_user'))}"></label>
