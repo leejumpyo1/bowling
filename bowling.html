@@ -1063,12 +1063,12 @@ async function drawLanes(g){
   try{ await Promise.all([document.fonts.load('900 60px "Noto Sans KR"'), document.fonts.load('800 40px "Noto Sans KR"'), document.fonts.load('500 28px "Noto Sans KR"'), document.fonts.load('800 40px Manrope')]); }catch(e){}
   const KR='"Noto Sans KR", Manrope, sans-serif', NUM='Manrope, "Noto Sans KR", sans-serif';
   const att = attendees(g), k = g.teamCount||2;
-  const lanes = [...Array(k)].map((_,i)=>{ const ids = att.filter(id=>g.team?.[id]===i).sort((a,b)=>(avgIn(g,b)??-1)-(avgIn(g,a)??-1));
+  const lanes = [...Array(k)].map((_,i)=>{ const ids = laneIds(g,i);
     const kn = ids.map(id=>avgIn(g,id)).filter(v=>v!=null); return {i, ids, ma: kn.length ? Math.round(kn.reduce((a,b)=>a+b,0)/kn.length) : null}; }).filter(l=>l.ids.length);
   const W=1080, PAD=44, GAP=18, per = lanes.length<=4 ? Math.max(lanes.length,1) : Math.ceil(lanes.length/2);
   const colW = (W-2*PAD-(per-1)*GAP)/per, ROW=74, HEADH=118, TOP=300;
   const blocks=[]; for(let i=0;i<lanes.length;i+=per) blocks.push(lanes.slice(i,i+per));
-  const blockH = b => HEADH + Math.max(...b.map(l=>l.ids.length))*ROW + 16;
+  const blockH = b => HEADH + Math.max(...b.map(l=>Math.ceil(l.ids.length/2)))*ROW + 16;
   const H = TOP + blocks.reduce((a,b)=>a+blockH(b)+GAP,0) + 90;
   const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
   const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#16203a'); bg.addColorStop(1,'#0b1020'); x.fillStyle=bg; x.fillRect(0,0,W,H);
@@ -1086,10 +1086,12 @@ async function drawLanes(g){
       rr(x,cx,y,colW,HEADH-10,24); x.fillStyle=col; x.fill(); x.fillRect(cx, y+40, colW, HEADH-50);
       x.fillStyle='#0b1020'; x.font='900 40px '+KR; x.fillText(t('team', laneLabel(l.i)), cx+22, y+56);
       x.font='700 25px '+KR; x.fillStyle='rgba(11,16,32,.75)'; x.fillText((l.ma!=null? t('avg_short')+' '+l.ma : '')+' · '+l.ids.length+t('ppl_short'), cx+22, y+92);
-      l.ids.forEach((id,r)=>{ const ry = y + HEADH + r*ROW;
+      pairsOf(l.ids).forEach((pr,r)=>{ const ry = y + HEADH + r*ROW;
         if(r>0){ x.fillStyle='rgba(255,255,255,.08)'; x.fillRect(cx+18, ry-4, colW-36, 2); }
-        x.fillStyle='#fff'; x.font='800 '+(colW<230?32:36)+'px '+KR; x.textAlign='left'; x.fillText(mname(id), cx+22, ry+46);
-        const a = avgIn(g,id); x.textAlign='right'; x.fillStyle='rgba(255,255,255,.5)'; x.font='700 26px '+NUM; x.fillText(a!=null?String(Math.round(a)):'', cx+colW-20, ry+45); x.textAlign='left'; });
+        let fs = colW<230?28:34; x.font='800 '+fs+'px '+KR;
+        while(fs>20 && pr.reduce((a,id)=>a+x.measureText(mname(id)).width,0) > colW-44-24){ fs-=2; x.font='800 '+fs+'px '+KR; }
+        x.fillStyle='#fff'; x.textAlign='left'; x.fillText(mname(pr[0]), cx+22, ry+46);
+        if(pr[1]){ x.textAlign='right'; x.fillText(mname(pr[1]), cx+colW-22, ry+46); x.textAlign='left'; } });
     });
     y += bh + GAP; });
   const site = /^https?:/.test(location.protocol) && location.host ? location.host + location.pathname : '';
@@ -1113,10 +1115,13 @@ async function shareCardNative(){
 
 /* ---------------- texts ---------------- */
 function pollText(g){ return isDinner(g) ? t('poll_dinner', fmtDate(g.date,true), (g.time?', '+g.time:'') + (g.place?', '+g.place:'')) : t('poll_text', fmtDate(g.date,true), (g.time?', '+g.time:'')); }
+function laneIds(g, i){ const lo = v => v==null ? 1e9 : v;
+  return attendees(g).filter(id=>g.team?.[id]===i).sort((a,b)=>lo(avgIn(g,a))-lo(avgIn(g,b))); }
+const pairsOf = ids => { const out=[]; for(let j=0;j<ids.length;j+=2) out.push(ids.slice(j,j+2)); return out; };
 function teamsText(g){
   const att=attendees(g), k=g.teamCount||2; let s=t('teams_text', fmtDate(g.date,true))+'\n';
   for(let i=0;i<k;i++){ const ids=att.filter(id=>g.team?.[id]===i); const kn = ids.map(id=>avgIn(g,id)).filter(v=>v!=null); const ma = kn.length?Math.round(kn.reduce((a,b)=>a+b,0)/kn.length):0;
-    s += `\n${t('team',laneLabel(i))} (${t('avg_short')} ${ma}): ${ids.map(mname).join(', ')}`; }
+    s += `\n${laneLabel(i)}\n` + pairsOf(laneIds(g,i)).map(p=>p.map(mname).join(' ')).join('\n') + '\n'; }
   return s;
 }
 function resultsText(g){
