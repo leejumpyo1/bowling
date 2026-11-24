@@ -521,13 +521,13 @@ function vGameInner(){
   const kDef = num(dv('tc_'+g.id)) ?? (g.teamCount || autoK(att.length));
   h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3></div>`;
   if(!isAdmin()){
-    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button></div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
+    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button></div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
   }
   else if(att.length<2) h += `<div class="hint">${esc(t('need_att'))}</div>`;
   else {
     h += `<div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:8px">${esc(t('teams_n'))}<input class="in" type="number" min="1" max="8" style="width:70px" id="tc_${g.id}" data-d="tc_${g.id}" value="${esc(kDef)}"></label>
       <button class="btn pri sm" data-act="gen" data-id="${g.id}" ${ro()}>⚖️ ${esc(t('gen'))}</button>
-      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
+      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button><span class="grow"></span><button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
     if(hasTeams) h += teamsHtml(g, true);
     else h += `<div class="hint" style="margin-top:10px">${esc(t('lanes_hint'))}</div>`;
   }
