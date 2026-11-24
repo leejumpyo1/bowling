@@ -197,6 +197,7 @@ const I18N = {
   s1:'참석자', s2:'라인 배정', s3:'점수', s4:'결과',
   going:'참석 {0} · 불참 {1} · 미응답 {2}', copy_poll:'참석 조사 문구', all:'전체', none:'해제',
   no_members:'먼저 「회원」 탭에서 회원을 추가하세요.',
+  lanes_img_btn:'표로 공유', lanes_kakao_desc:'라인 배정표입니다. 사진을 눌러 크게 보세요 👀', lanes_img_title:'라인 배정', lanes_img_sub:'참석 {0}명 · {1}개 라인', ppl_short:'명',
   teams_n:'라인 수', gen:'라인 배정', reshuffle:'다시 섞기', copy_teams:'라인 명단 복사',
   team:'{0} 라인', avg_short:'평균', no_team:'미배정', sum_avg:'평균합 {0} · 평균 {1}', team_score:'합계 {0}',
   need_att:'참석자를 2명 이상 선택하세요.',
@@ -520,13 +521,13 @@ function vGameInner(){
   const kDef = num(dv('tc_'+g.id)) ?? (g.teamCount || autoK(att.length));
   h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3></div>`;
   if(!isAdmin()){
-    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}</div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
+    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button></div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
   }
   else if(att.length<2) h += `<div class="hint">${esc(t('need_att'))}</div>`;
   else {
     h += `<div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:8px">${esc(t('teams_n'))}<input class="in" type="number" min="1" max="8" style="width:70px" id="tc_${g.id}" data-d="tc_${g.id}" value="${esc(kDef)}"></label>
       <button class="btn pri sm" data-act="gen" data-id="${g.id}" ${ro()}>⚖️ ${esc(t('gen'))}</button>
-      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}`:''}</div>`;
+      ${hasTeams?`<button class="btn sm" data-act="shuffle" data-id="${g.id}" ${ro()}>🔀 ${esc(t('reshuffle'))}</button><span class="grow"></span><button class="btn sm" data-act="copyTeams" data-id="${g.id}">📋 ${esc(t('copy_teams'))}</button>${kakaoBtn('kTeams', g.id)}<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
     if(hasTeams) h += teamsHtml(g, true);
     else h += `<div class="hint" style="margin-top:10px">${esc(t('lanes_hint'))}</div>`;
   }
@@ -936,14 +937,14 @@ function renderModal(){
   let body='';
   if(M.type==='copy') body = `<h3>${esc(t('copy_manual'))}</h3><textarea class="in" id="copyArea" readonly>${esc(M.text)}</textarea><div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn pri" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='confirm') body = `<h3>${esc(M.title)}</h3><div class="hint">${M.html||esc(M.text||'')}</div><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri ${M.danger?'':''}" data-act="mok">${esc(M.okLabel||t('confirm'))}</button></div>`;
-  else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>📸 ${esc(t('card_h'))}</h3>
+  else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>${esc(M.h || ('📸 '+t('card_h')))}</h3>
     <img src="${M.img}" alt="" style="width:100%;border-radius:12px;display:block">
     <div class="row" style="margin-top:12px;flex-wrap:wrap">
       ${typeof kakaoShareImage==='function' && typeof kakaoReady!=='undefined' && kakaoReady ? `<button class="btn kakao grow" data-act="cardKakao" style="justify-content:center">💬 ${esc(t('kakao'))}</button>`:''}
       ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow" data-act="cardShare" style="justify-content:center">📤 ${esc(t('card_share'))}</button>`:''}
       <a class="btn grow" href="${M.img}" download="${esc(M.file.name)}" style="justify-content:center;text-decoration:none;color:inherit">⬇️ ${esc(t('card_save'))}</a>
     </div>
-    <div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>
+    ${M.kind==='lanes'?'':`<div class="hint" style="margin-top:8px">${esc(t('card_hint'))}</div>`}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('close'))}</button></div>`;
   else if(M.type==='login') body = `<h3>🔒 ${esc(t('login_h'))}</h3>
     <form id="loginForm"><label class="f">${esc(t('loginL'))}<input class="in" id="lg_user" data-d="lg_user" autocomplete="username" value="${esc(dv('lg_user'))}"></label>
@@ -1050,9 +1051,64 @@ async function openCard(gid, id){
   const file = new File([blob], 'bowling_'+cd.date+'_'+cd.name+'.png', {type:'image/png'});
   S.modal = {type:'card', img:url, file, cd, gid}; renderModal();
 }
+/* ---------------- lane table image (라인 배정 표) ---------------- */
+const LANE_COLORS = ['#ff7347','#3a9bff','#2ee59d','#ffcf33','#c77dff','#ff5c8a','#4dd6e8','#a3e048'];
+function logoImage(){
+  const el = document.querySelector('.logo-mark'); if(!el) return Promise.resolve(null);
+  let s = el.outerHTML.replace(/style="fill:var\(--lane\)"/g, 'fill="#1d2a44"').replace('<svg ', '<svg width="480" height="380" ');
+  if(!/xmlns=/.test(s)) s = s.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+  return new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); });
+}
+async function drawLanes(g){
+  try{ await Promise.all([document.fonts.load('900 60px "Noto Sans KR"'), document.fonts.load('800 40px "Noto Sans KR"'), document.fonts.load('500 28px "Noto Sans KR"'), document.fonts.load('800 40px Manrope')]); }catch(e){}
+  const KR='"Noto Sans KR", Manrope, sans-serif', NUM='Manrope, "Noto Sans KR", sans-serif';
+  const att = attendees(g), k = g.teamCount||2;
+  const lanes = [...Array(k)].map((_,i)=>{ const ids = att.filter(id=>g.team?.[id]===i).sort((a,b)=>(avgIn(g,b)??-1)-(avgIn(g,a)??-1));
+    const kn = ids.map(id=>avgIn(g,id)).filter(v=>v!=null); return {i, ids, ma: kn.length ? Math.round(kn.reduce((a,b)=>a+b,0)/kn.length) : null}; }).filter(l=>l.ids.length);
+  const W=1080, PAD=44, GAP=18, per = lanes.length<=4 ? Math.max(lanes.length,1) : Math.ceil(lanes.length/2);
+  const colW = (W-2*PAD-(per-1)*GAP)/per, ROW=74, HEADH=118, TOP=300;
+  const blocks=[]; for(let i=0;i<lanes.length;i+=per) blocks.push(lanes.slice(i,i+per));
+  const blockH = b => HEADH + Math.max(...b.map(l=>l.ids.length))*ROW + 16;
+  const H = TOP + blocks.reduce((a,b)=>a+blockH(b)+GAP,0) + 90;
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#16203a'); bg.addColorStop(1,'#0b1020'); x.fillStyle=bg; x.fillRect(0,0,W,H);
+  x.fillStyle='#1d2a44'; x.fillRect(0,0,W,250);
+  const logo = await logoImage(); let tx = PAD;
+  if(logo){ x.drawImage(logo, PAD-10, 34, 230, 182); tx = PAD+240; }
+  x.textBaseline='alphabetic'; x.textAlign='left';
+  x.fillStyle='#fff'; x.font='900 64px '+KR; x.fillText(t('lanes_img_title'), tx, 118);
+  x.fillStyle='rgba(255,255,255,.75)'; x.font='600 36px '+KR; x.fillText(fmtDate(g.date,true) + (g.time?' · '+g.time:''), tx, 172);
+  x.fillStyle='rgba(255,255,255,.55)'; x.font='500 30px '+KR; x.fillText(t('lanes_img_sub', att.length, lanes.length), tx, 218);
+  let y = TOP;
+  blocks.forEach(b=>{ const bh = blockH(b);
+    b.forEach((l,j)=>{ const cx = PAD + j*(colW+GAP), col = LANE_COLORS[l.i % LANE_COLORS.length];
+      rr(x,cx,y,colW,bh,24); x.fillStyle='rgba(255,255,255,.06)'; x.fill();
+      rr(x,cx,y,colW,HEADH-10,24); x.fillStyle=col; x.fill(); x.fillRect(cx, y+40, colW, HEADH-50);
+      x.fillStyle='#0b1020'; x.font='900 40px '+KR; x.fillText(t('team', laneLabel(l.i)), cx+22, y+56);
+      x.font='700 25px '+KR; x.fillStyle='rgba(11,16,32,.75)'; x.fillText((l.ma!=null? t('avg_short')+' '+l.ma : '')+' · '+l.ids.length+t('ppl_short'), cx+22, y+92);
+      l.ids.forEach((id,r)=>{ const ry = y + HEADH + r*ROW;
+        if(r>0){ x.fillStyle='rgba(255,255,255,.08)'; x.fillRect(cx+18, ry-4, colW-36, 2); }
+        x.fillStyle='#fff'; x.font='800 '+(colW<230?32:36)+'px '+KR; x.textAlign='left'; x.fillText(mname(id), cx+22, ry+46);
+        const a = avgIn(g,id); x.textAlign='right'; x.fillStyle='rgba(255,255,255,.5)'; x.font='700 26px '+NUM; x.fillText(a!=null?String(Math.round(a)):'', cx+colW-20, ry+45); x.textAlign='left'; });
+    });
+    y += bh + GAP; });
+  const site = /^https?:/.test(location.protocol) && location.host ? location.host + location.pathname : '';
+  x.fillStyle='rgba(255,255,255,.35)'; x.font='500 24px '+NUM; x.fillText(site || '동해 B.C', PAD, H-36);
+  return c;
+}
+async function openLanes(gid){
+  const g = S.games.find(x=>x.id===gid); if(!g) return;
+  S.modal = {type:'card', loading:true}; renderModal();
+  const c = await drawLanes(g);
+  const url = c.toDataURL('image/png'); const blob = await new Promise(r=>c.toBlob(r,'image/png'));
+  const file = new File([blob], 'lanes_'+g.date+'.png', {type:'image/png'});
+  S.modal = {type:'card', kind:'lanes', h:'🎳 '+t('lanes_img_title'), img:url, file, gid, w:c.width, hgt:c.height,
+    shareTitle: t('lanes_img_title')+' — '+fmtDate(g.date,true)+(g.time?' '+g.time:''), shareText: teamsText(g)}; renderModal();
+}
+
 async function shareCardNative(){
   const M=S.modal; if(!M||!M.file) return;
-  try{ await navigator.share({files:[M.file], title:'🎳 '+M.cd.name, text:'🎳 '+M.cd.name+' — '+M.cd.top}); }catch(e){ if(e && e.name!=='AbortError') toast(t('err', e.message||'share')); }
+  try{ await navigator.share(M.kind==='lanes' ? {files:[M.file], title:M.shareTitle} : {files:[M.file], title:'🎳 '+M.cd.name, text:'🎳 '+M.cd.name+' — '+M.cd.top}); }catch(e){ if(e && e.name!=='AbortError') toast(t('err', e.message||'share')); }
 }
 
 /* ---------------- texts ---------------- */
@@ -1135,6 +1191,7 @@ document.addEventListener('click', e=>{
       const r = genTeams(g, Math.max(1,Math.min(8,k)), act==='shuffle'); delete S.d['tc_'+id];
       write('games/'+id, ()=>gdoc(id).update({team:r.map, teamCount:r.k})); break; }
     case 'copyTeams': copyText(teamsText(g)); break;
+    case 'lanesImg': openLanes(g.id); break;
     case 'askClose': {
       const att = attendees(g);
       const rows = att.map(mid=>({mid, arr:draftArr(g,mid), a:avgIn(g,mid)})).filter(r=>played(r.arr).length);
@@ -1460,6 +1517,7 @@ async function kakaoShareImage(M){
     const res = await window.Kakao.Share.uploadImage({file:[M.file]});
     const img = res.infos.original.url;
     const url = location.href.split('#')[0]; const link = {mobileWebUrl:url, webUrl:url};
+    if(M.kind==='lanes'){ window.Kakao.Share.sendDefault({objectType:'feed', content:{title:'🎳 '+M.shareTitle, description:t('lanes_kakao_desc'), imageUrl:img, imageWidth:M.w, imageHeight:M.hgt, link}, buttons:[{title:t('kakao_open'), link}]}); return; }
     const cd = M.cd; const r1 = v => Math.round(v*10)/10;
     const title = '🎳 ' + cd.name + ' — BEST ' + cd.top + (cd.top>=200 ? ' 🔥' : '');
     const desc = cd.arr.join(' / ') + ' · ⌀' + r1(cd.n) + (cd.diff!=null ? ' · 평균 대비 ' + (cd.diff>=0?'+':'−') + r1(Math.abs(cd.diff)) : '') + (cd.of>1 ? ' · ' + cd.rank + '위/' + cd.of : '');
