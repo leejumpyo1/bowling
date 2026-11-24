@@ -156,7 +156,9 @@ table.sc input.in{width:84px;text-align:right;padding:7px 9px}
 .switch input:checked + .tr::after{left:19px}
 .inactive{opacity:.5}
 .modal-bg{position:fixed;inset:0;background:rgba(10,10,20,.45);display:grid;place-items:center;padding:16px;z-index:50}
-.modal{background:var(--card);border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow:auto;border:1px solid var(--line)}
+.mx{position:sticky;top:-10px;float:right;margin:-10px -10px 0 6px;width:36px;height:36px;border:0;border-radius:50%;background:var(--card);color:var(--muted);font-size:20px;line-height:1;cursor:pointer;z-index:2;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.mx:hover{background:var(--line);color:var(--ink)}
+.modal{position:relative;background:var(--card);border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow:auto;border:1px solid var(--line)}
 .modal h3{margin:0 0 10px;font-size:17px}
 .modal textarea{width:100%;min-height:200px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2)}
@@ -939,7 +941,7 @@ function renderModal(){
   const root = document.getElementById('modalRoot'); const M = S.modal;
   if(!M){ root.innerHTML=''; return; }
   let body='';
-  if(M.type==='copy') body = `<h3>${esc(t('copy_manual'))}</h3><textarea class="in" id="copyArea" readonly>${esc(M.text)}</textarea><div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn pri" data-act="mclose">${esc(t('close'))}</button></div>`;
+  if(M.type==='copy') body = `<h3>${esc(t('copy_manual'))}</h3><textarea class="in" id="copyArea" readonly>${esc(M.text)}</textarea>`;
   else if(M.type==='confirm') body = `<h3>${esc(M.title)}</h3><div class="hint">${M.html||esc(M.text||'')}</div><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri ${M.danger?'':''}" data-act="mok">${esc(M.okLabel||t('confirm'))}</button></div>`;
   else if(M.type==='card') body = M.loading ? `<div class="empty">${esc(t('card_making'))}</div>` : `<h3>${esc(M.h || ('📸 '+t('card_h')))}</h3>
     <img src="${M.img}" alt="" style="width:100%;border-radius:12px;display:block">
@@ -948,8 +950,7 @@ function renderModal(){
       ${navigator.canShare && M.file && navigator.canShare({files:[M.file]}) ? `<button class="btn grow pri" data-act="cardShare" style="justify-content:center">📤 ${esc(t('photo_share'))}</button>`:''}
       <a class="btn grow" href="${M.img}" download="${esc(M.file.name)}" style="justify-content:center;text-decoration:none;color:inherit">⬇️ ${esc(t('card_save'))}</a>
     </div>
-    ${(navigator.canShare && M.file && navigator.canShare({files:[M.file]}))?'':`<div class="hint" style="margin-top:8px">${esc(t('photo_hint'))}</div>`}
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('close'))}</button></div>`;
+    ${(navigator.canShare && M.file && navigator.canShare({files:[M.file]}))?'':`<div class="hint" style="margin-top:8px">${esc(t('photo_hint'))}</div>`}`;
   else if(M.type==='login') body = `<h3>🔒 ${esc(t('login_h'))}</h3>
     <form id="loginForm"><label class="f">${esc(t('loginL'))}<input class="in" id="lg_user" data-d="lg_user" autocomplete="username" value="${esc(dv('lg_user'))}"></label>
     <label class="f" style="margin-top:10px">${esc(t('passL'))}<input class="in" type="password" id="lg_pass" data-d="lg_pass" autocomplete="current-password" value="${esc(dv('lg_pass'))}"></label>
@@ -982,8 +983,8 @@ function renderModal(){
     <label class="f" style="margin-top:10px">${esc(t('fee_account_l'))}<input class="in" id="fs_acc" data-d="fs_acc" value="${esc(dv('fs_acc', d.account??feeAccount()))}"></label>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-act="mclose">${esc(t('cancel'))}</button><button class="btn pri" data-act="feeSetSave">${esc(t('save'))}</button></div>`; }
   else if(M.type==='report'){ const R=buildReport(M.from, M.to); body = `<h3>📊 ${esc(t('rep_title'))}</h3>${reportHtml(R)}
-    <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn" data-act="repCopy">📋 ${esc(t('rep_copy'))}</button>${typeof kakaoReady!=='undefined'&&kakaoReady?`<button class="btn kakao" data-act="repKakao">💬 ${esc(t('kakao'))}</button>`:''}<button class="btn" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button><span class="grow"></span><button class="btn pri" data-act="mclose">${esc(t('close'))}</button></div>`; }
-  root.innerHTML = `<div class="modal-bg" data-act="bgclose"><div class="modal">${body}</div></div>`;
+    <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn" data-act="repCopy">📋 ${esc(t('rep_copy'))}</button>${typeof kakaoReady!=='undefined'&&kakaoReady?`<button class="btn kakao" data-act="repKakao">💬 ${esc(t('kakao'))}</button>`:''}<button class="btn" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button></div>`; }
+  root.innerHTML = `<div class="modal-bg" data-act="bgclose"><div class="modal"><button class="mx" data-act="mclose" aria-label="${esc(t('close'))}">✕</button>${body}</div></div>`;
 }
 let toastTimer;
 function toast(msg){ const r=document.getElementById('toastRoot'); r.innerHTML=`<div class="toast">${esc(msg)}</div>`; clearTimeout(toastTimer); toastTimer=setTimeout(()=>r.innerHTML='',2200); }
