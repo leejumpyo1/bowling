@@ -521,9 +521,9 @@ function vGameInner(){
   }
   // step 2
   const kDef = num(dv('tc_'+g.id)) ?? (g.teamCount || autoK(att.length));
-  h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3></div>`;
+  h += `<div class="card"><div class="step"><div class="n">2</div><h3 class="grow">${esc(t('s2'))}</h3>${!isAdmin()&&hasTeams?`<button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button>`:''}</div>`;
   if(!isAdmin()){
-    h += hasTeams ? `<div class="row"><span class="grow"></span><button class="btn sm" data-act="lanesImg" data-id="${g.id}">🖼️ ${esc(t('lanes_img_btn'))}</button></div>` + teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
+    h += hasTeams ? teamsHtml(g, false) : `<div class="hint">${esc(t('lanes_wait'))}</div>`;
   }
   else if(att.length<2) h += `<div class="hint">${esc(t('need_att'))}</div>`;
   else {
