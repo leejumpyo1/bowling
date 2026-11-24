@@ -1042,8 +1042,6 @@ async function drawCard(cd){
     x.fillStyle='rgba(255,255,255,.55)'; x.font='500 28px '+KR; x.fillText(st[0], cx+26, cy+44);
     x.fillStyle='#fff'; x.font='800 46px '+NUM; x.fillText(st[1], cx+26, cy+98); });
   // footer
-  const site = /^https?:/.test(location.protocol) && location.host ? location.host + location.pathname.replace(/index\.html$/,'') : '';
-  if(site){ x.fillStyle='rgba(255,255,255,.4)'; x.font='500 26px '+NUM; x.fillText(site, 76, H-30); }
   return c;
 }
 async function openCard(gid, id){
@@ -1073,7 +1071,7 @@ async function drawLanes(g){
   const colW = (W-2*PAD-(per-1)*GAP)/per, ROW=74, HEADH=118, TOP=300;
   const blocks=[]; for(let i=0;i<lanes.length;i+=per) blocks.push(lanes.slice(i,i+per));
   const blockH = b => HEADH + Math.max(...b.map(l=>Math.ceil(l.ids.length/2)))*ROW + 16;
-  const H = TOP + blocks.reduce((a,b)=>a+blockH(b)+GAP,0) + 90;
+  const H = TOP + blocks.reduce((a,b)=>a+blockH(b)+GAP,0) + 26;
   const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
   const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#16203a'); bg.addColorStop(1,'#0b1020'); x.fillStyle=bg; x.fillRect(0,0,W,H);
   x.fillStyle='#1d2a44'; x.fillRect(0,0,W,250);
@@ -1098,8 +1096,6 @@ async function drawLanes(g){
         if(pr[1]){ x.textAlign='right'; x.fillText(mname(pr[1]), cx+colW-22, ry+46); x.textAlign='left'; } });
     });
     y += bh + GAP; });
-  const site = /^https?:/.test(location.protocol) && location.host ? location.host + location.pathname : '';
-  x.fillStyle='rgba(255,255,255,.35)'; x.font='500 24px '+NUM; x.fillText(site || '동해 B.C', PAD, H-36);
   return c;
 }
 async function openLanes(gid){
