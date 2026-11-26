@@ -201,7 +201,7 @@ const I18N = {
   s1:'참석자', s2:'라인 배정', s3:'점수', s4:'결과',
   going:'참석 {0} · 불참 {1} · 미응답 {2}', copy_poll:'참석 조사 문구', all:'전체', none:'해제',
   no_members:'먼저 「회원」 탭에서 회원을 추가하세요.',
-  lanes_img_btn:'공유', photo_share:'공유', photo_hint:'이 브라우저에서는 바로 공유가 안 돼요. 「저장」 후 카톡에서 사진으로 보내 주세요 (또는 크롬/사파리에서 열기).', lanes_kakao_desc:'라인 배정표 · 사진을 누르면 앱에서 크게 보여요 👀', kk_bowling:'볼링 정기전', kk_dinner:'회식', kk_check:'「앱 열기」에서 참석/불참 체크 🙌', lanes_img_title:'라인 배정', lanes_img_sub:'참석 {0}명 · {1}개 라인', ppl_short:'명',
+  ocr_tot_ok:'합계(TOT) 확인 ✓', ocr_tot_bad:'합계(TOT)와 안 맞음, 직접 확인: {0}', lanes_img_btn:'공유', photo_share:'공유', photo_hint:'이 브라우저에서는 바로 공유가 안 돼요. 「저장」 후 카톡에서 사진으로 보내 주세요 (또는 크롬/사파리에서 열기).', lanes_kakao_desc:'라인 배정표 · 사진을 누르면 앱에서 크게 보여요 👀', kk_bowling:'볼링 정기전', kk_dinner:'회식', kk_check:'「앱 열기」에서 참석/불참 체크 🙌', lanes_img_title:'라인 배정', lanes_img_sub:'참석 {0}명 · {1}개 라인', ppl_short:'명',
   teams_n:'라인 수', gen:'라인 배정', reshuffle:'다시 섞기', copy_teams:'라인 명단 복사',
   team:'{0} 라인', avg_short:'평균', no_team:'미배정', sum_avg:'평균합 {0} · 평균 {1}', team_score:'합계 {0}',
   need_att:'참석자를 2명 이상 선택하세요.',
@@ -1300,7 +1300,7 @@ function applyOcrText(M, text){
   const r = parsePaste(g, text);
   if(r.found.length){
     S.d.paste = r.found.map(f=>mname(f.id)+' '+f.sc.join(' ')).join('\n');
-    M.ocrMsg = t('ocr_ok', r.found.length) + (r.unknown.length ? ' · ' + t('paste_unknown', r.unknown.join(', ')) : '');
+    M.ocrMsg = t('ocr_ok', r.found.length) + (r.checked && !r.bad.length ? ' · ' + t('ocr_tot_ok') : '') + (r.bad.length ? ' · ⚠️ ' + t('ocr_tot_bad', r.bad.map(mname).join(', ')) : '') + (r.unknown.length ? ' · ' + t('paste_unknown', r.unknown.join(', ')) : '');
   } else { S.d.paste = text; M.ocrMsg = t('ocr_none'); }
 }
 const normName = s => String(s||'').replace(/\s+/g,'').toLowerCase();
@@ -1388,10 +1388,29 @@ function parsePaste(g, text){
   if(numRows.length && nameLines.length >= numRows.length){
     nameLines.slice(-numRows.length).forEach((m,i)=>{ if(!best[m.id] || !best[m.id].exact) best[m.id] = {id:m.id, sc:numRows[i], exact:true}; });
   }
+  // checksum: the receipt's summary row "이름 LN 회원 Game TOT TOP AVR R" gives each player's TOT.
+  // If a player's games don't add up to their TOT, take the score row that does (OCR sometimes shifts rows).
+  const tot = {};
+  lines.forEach(line=>{ const m = matchMember(line); if(!m) return;
+    const v = (line.match(/\d+/g)||[]).map(Number).find(x=>x>300 && x<=300*n); if(v && tot[m.id]==null) tot[m.id] = v; });
+  const sum = a => a.reduce((x,y)=>x+(Number(y)||0),0);
+  const cands = []; const seen = new Set();
+  const addC = a => { if(a.length===n && a.every(isScore)){ const k=a.join(','); if(!seen.has(k)){ seen.add(k); cands.push(a); } } };
+  Object.values(best).forEach(b=>addC(b.sc)); numRows.forEach(addC);
+  lines.forEach(l=>{ const ns=(l.match(/\d+/g)||[]).map(Number); for(let i=0;i+n<=ns.length;i++) addC(ns.slice(i,i+n)); });
+  const fixed = [], bad = [];
+  Object.keys(tot).forEach(id=>{ const b = best[id];
+    if(b && sum(b.sc)===tot[id]) return;
+    const hit = cands.filter(a=>sum(a)===tot[id]);
+    if(hit.length===1){ best[id] = {id, sc:hit[0], exact:true}; fixed.push(id); }
+    else if(b) bad.push(id); });
+  Object.values(best).forEach(b=>{ if(tot[b.id]!=null && sum(b.sc)!==tot[b.id] && !bad.includes(b.id)) bad.push(b.id); });
+  const bySc = {}; Object.values(best).forEach(b=>{ const k=b.sc.join(','); (bySc[k]=bySc[k]||[]).push(b.id); });
+  Object.values(bySc).forEach(ids=>{ if(ids.length>1) ids.forEach(id=>{ if(!bad.includes(id)) bad.push(id); }); });   // same three scores for two people = shifted row
   // drop partial matches that are clearly not scores of all games (keep only if user typed fewer games by hand)
   // receipt names that are not in the member list
   (String(text).match(/(^|\n)\s*([가-힣]{2,4})\s+\d{1,2}\s+회원/g)||[]).forEach(x=>{ const nm=x.trim().split(/\s+/)[0]; if(!matchToken(nm) && !unknown.includes(nm)) unknown.push(nm); });
-  return {found:Object.values(best), unknown};
+  return {found:Object.values(best), unknown, bad, checked:Object.keys(tot).length};
 }
 async function closeGame(id){
   const g = S.games.find(x=>x.id===id); if(!g) return;
